@@ -1,5 +1,4 @@
 
-
 import java.io.*;
 import java.net.*;
 
@@ -10,6 +9,8 @@ public class TextFileSever {
 	private FileInputStream FIS;
 	private DataOutputStream DOS;
 	private Socket ClientServer;
+	private FileOutputStream FOS;
+	private DataInputStream DIS;
 	
 	TextFileSever() {
 		try {
@@ -26,6 +27,37 @@ public class TextFileSever {
 		
 	}
 	
+	public void FileGet(String TextName) {
+		File file = new File(TextName);
+		try {
+			FOS = new FileOutputStream(file);
+			DIS = new DataInputStream(ClientServer.getInputStream());
+			System.out.println("FileName: "+DIS.readUTF());
+			System.out.println("FileLength: "+DIS.readLong());
+			byte[] bytes = new byte[2];
+			int length = 0;
+			while ((length = DIS.read(bytes,0,bytes.length))!=-1) {
+				FOS.write(bytes, 0, bytes.length);
+				FOS.flush();
+			}
+			System.out.println("File get over!");
+			
+		}catch(IOException ie) {
+			System.out.println("File get error");
+			System.err.println(ie);
+		}
+		finally {
+			try {
+				FOS.close();
+				DIS.close();
+			}catch(IOException ie) {
+				System.out.println("Close error");
+				System.err.println(ie);
+			}
+		}
+	}
+	
+	
 	public void FileSend(String TextName) {
 		File file = new File(TextName);
 		try {
@@ -36,12 +68,11 @@ public class TextFileSever {
 			DOS.writeLong(file.length());
 			DOS.flush();
 			System.out.println("Translate start");
-			int c;
-			c=FIS.read();
-			while(c!=-1) {
-				DOS.write((char)c);
+			byte[] bData = new byte[2];
+			int length;
+			while((length = FIS.read(bData, 0, bData.length))!=-1) {
+				DOS.write(bData,0,bData.length);
 				DOS.flush();
-				c=FIS.read();
 			}
 			System.out.println("send over");
 		}
@@ -53,15 +84,21 @@ public class TextFileSever {
 			try {
 			if(FIS!=null) FIS.close();
 			if(DOS!=null) DOS.close();
-			if(ClientServer!=null) ClientServer.close();
 			}catch(Exception e) {System.out.println("Close error");}
 		}
 		
 	}
 	public static void main(String[] args) {
 		TextFileSever TFSTest = new TextFileSever();
-		TFSTest.FileSend("./out.txt");
-		try{TFSTest.TFSSocket.close();
+		TFSTest.FileGet("./ServerIn.bin");
+		if(TFSTest.ClientServer.isClosed()) {System.out.println("Server Client is Closed!!");}
+		else if(TFSTest.TFSSocket.isClosed()) System.out.println("Server is Closed!");
+		try{TFSTest.ClientServer = TFSTest.TFSSocket.accept();}catch(IOException ie) {System.out.println("reAcccept error!");System.err.println(ie);}
+		TFSTest.FileSend("./ServerIn.bin");
+		try{
+			TFSTest.ClientServer.close();
+			TFSTest.TFSSocket.close();
+			
 		}catch(IOException ie) {
 			System.out.println("Server close error");
 			System.err.println(ie);
