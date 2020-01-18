@@ -22,3 +22,7 @@
 ​	源码：NIOServer.java(服务端) NIOClient.java(客户端)
 
 ​	使用NIO流技术 完成了简单的Mb级别文本传输Demo 暂时使用BufferInputStream 如果传输要求文件过大可用MappedByteBuffer进行优化
+
+#### 20/1/18：
+
+​	测试了在服务器上运行服务端文件 暂时无误 最近几天回家 鸽一会 尽量在30号之前完成前9项任务
