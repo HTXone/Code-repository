@@ -14,12 +14,56 @@ import javax.net.SocketFactory;
 
 import java.lang.*;
 
-class ClientFileTranslate implements Runnable{				//文件传输类
+@SuppressWarnings("deprecation")
+class SpeedWatch implements Runnable,Observer{
+	
+	public long start = 0;
+	public long end = 0;
+	private boolean close = true;
+	
+	private ClientFileTranslate Client = null;
+	
+	SpeedWatch(ClientFileTranslate Client){
+		this.Client = Client;
+	}
+	
+	public void Speed() {
+		start = end;
+		end = Client.index;
+		System.out.println("Start: "+start+"end: "+end+"Speed: "+(end-start)+" kb/s");
+	}
+	
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		while(close) {
+			try {
+				TimeUnit.SECONDS.sleep(1);
+			}catch(InterruptedException ie) {System.out.println("Speed watch error");}
+			if(close) Speed();
+			else {Speed();System.out.println("Closed");}
+		}
+		return ;
+	}
+
+	@Override
+	public void update(Observable o, Object arg) {
+		// TODO Auto-generated method stub
+		close = false;
+		System.out.println("will close");
+	}
+	
+}
+
+@SuppressWarnings("deprecation")
+class ClientFileTranslate extends Observable implements Runnable{				//文件传输类
 	Socket client = null;
 	InputStream INS = null;
 	OPSW OPS = null;
 	String RC4PassWord = null;
 	CallBack CB = null;
+	public int index = 0;	
+	
 	
 	ClientFileTranslate(Socket client,InputStream INS,OPSW OPS,String RC4PassWord,CallBack CB) {
 		// TODO Auto-generated constructor stub
@@ -28,6 +72,7 @@ class ClientFileTranslate implements Runnable{				//文件传输类
 		this.OPS = OPS;
 		this.RC4PassWord = RC4PassWord;
 		this.CB = CB;
+		this.index = 0;
 	}
 	
 	@Override
@@ -37,31 +82,50 @@ class ClientFileTranslate implements Runnable{				//文件传输类
 		byte[] bData = new byte[1024];
 		int length;
 		byte[]sData;
+		SpeedWatch SW = new SpeedWatch(this);
+		this.addObserver(SW);
+		
+		Thread thread = new Thread(SW);
+		thread.start();
+		
 		if(OPS.OS!=null) {
 			while((length = INS.read(bData, 0, bData.length))!=-1) {
-				System.out.println(length);
+				//System.out.println(length);
+				index++;
+				//System.out.println(index);
 				OPS.OS.write(bData, 0, length);
 				OPS.OS.flush();
 			}
+			
+			super.setChanged();
+			notifyObservers();
+			
 			OPS.OS.close();
 			INS.close();
 		}
 	
 		else {
 			while((length = INS.read(bData, 0, bData.length))!=-1) {
-				System.out.println(length);
+				//System.out.println(length);
 				//sData = RC4.HloveyRC4(bData, RC4PassWord);
+				index++;
 				OPS.RAF.write(bData, 0, length);
 			}
+			
+			super.setChanged();
+			notifyObservers();
+			
 			OPS.RAF.close();
 			INS.close();
 		}
 		CB.callback();
+		
 	}catch(IOException ie) {
 		System.out.println("File Translate error");
 		ie.printStackTrace();
 	}
 	}
+
 }
 
 class MergeFileCallBack implements CallBack{				//分段文件接收后整合类
@@ -234,7 +298,7 @@ class SplitFileSendCallBack implements CallBack{
 
 public class SocketClient implements CallBack{		//增加回调接口
 	int HTTPS_PORT = 4000;
-	String hostName = "182.92.197.26";
+	String hostName = "localhost";
 	InetAddress hostAddress = null;
 	SocketFactory factory = null;
 	Socket client = null;
@@ -552,7 +616,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 	
 	public static void main(String[] args) {
 		try {
-			SocketClient Client = new SocketClient("182.92.197.26",4000,args[0],args[1],args[2],args[3]);
+			SocketClient Client = new SocketClient("localhost",4000,args[0],args[1],args[2],args[3]);
 			Client.ClientFirstStart(args[0], args[1], args[2],args[3]);
 			//Client.FileTranslate(new FileInputStream("./in.bin"), new BufferedOutputStream(Client.getClientOutputStream())); 
 		}catch(Exception ie) {}
