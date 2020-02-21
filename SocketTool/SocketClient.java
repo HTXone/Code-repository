@@ -8,40 +8,80 @@ import java.util.zip.GZIPInputStream;
 
 import javax.net.*;
 import javax.net.ssl.*;
+
 import javax.net.SocketFactory;
 
 
 
 import java.lang.*;
 
+class splitSpeedWatch implements Runnable{						//配合SpeedWatch一起使用 用于显示速度
+	private ArrayList<SpeedWatch> SpeedList = null;
+	
+	public splitSpeedWatch() {
+		// TODO Auto-generated constructor stub
+		SpeedList = new ArrayList<SpeedWatch>();
+	}
+	
+	public void addSpeedWatch(SpeedWatch SW) {
+		SpeedList.add(SW);
+	}
+	
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		try {
+			TimeUnit.MILLISECONDS.sleep(100);
+			while(SpeedList!=null&&SpeedList.get(0).Nclose) {
+				TimeUnit.SECONDS.sleep(1);
+				long speed = 0;
+				for(int i = 0;i<SpeedList.size();i++) {
+					speed+=SpeedList.get(i).Speed();
+				}
+				System.out.println("The Speed: "+speed);
+			}
+		}catch(InterruptedException ie) {
+			System.out.println("SpeedWatch error");
+		}
+		
+	}
+	
+}
+
+
 @SuppressWarnings("deprecation")
 class SpeedWatch implements Runnable,Observer{
 	
 	public long start = 0;
 	public long end = 0;
-	private boolean close = true;
-	
+	public boolean Nclose = true;	//传输通道关闭为false
+	private long sum = 0;			//用于计算
 	private ClientFileTranslate Client = null;
 	
 	SpeedWatch(ClientFileTranslate Client){
 		this.Client = Client;
 	}
 	
-	public void Speed() {
+	public long Speed() {
 		start = end;
 		end = Client.index;
-		System.out.println("Start: "+start+"end: "+end+"Speed: "+(end-start)+" kb/s");
+		//System.out.println("Start: "+start+"end: "+end+"Speed: "+(end-start)+" kb/s");
+		return end-start;
 	}
 	
 	@Override
-	public void run() {
+	public synchronized void run() {		//添加同步锁 保证计算速度时不传输
 		// TODO Auto-generated method stub
-		while(close) {
+		while(Nclose) {
 			try {
 				TimeUnit.SECONDS.sleep(1);
 			}catch(InterruptedException ie) {System.out.println("Speed watch error");}
-			if(close) Speed();
-			else {Speed();System.out.println("Closed");}
+			if(Nclose) {
+				//Speed();			//显示前1S内的传输速度
+				Client.Sindex =  0;	//重置限速开关
+				Client.limit = true;
+			}
+			else {System.out.println("Closed");}
 		}
 		return ;
 	}
@@ -49,7 +89,7 @@ class SpeedWatch implements Runnable,Observer{
 	@Override
 	public void update(Observable o, Object arg) {
 		// TODO Auto-generated method stub
-		close = false;
+		Nclose = false;
 		System.out.println("will close");
 	}
 	
@@ -62,10 +102,15 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 	OPSW OPS = null;
 	String RC4PassWord = null;
 	CallBack CB = null;
-	public int index = 0;	
 	
+	public int index = 0;		//统计传输数量
+	public int Sindex = 0;		//统计每秒传输数量
+	public boolean limit = true; 		//限速开关 true时保持传输 false时 睡眠停止传输
 	
-	ClientFileTranslate(Socket client,InputStream INS,OPSW OPS,String RC4PassWord,CallBack CB) {
+	public long LimitSpeed = -1;		//限制最大传输速度 -1时不限速
+	public SpeedWatch SW = null;
+	
+	ClientFileTranslate(Socket client,InputStream INS,OPSW OPS,String RC4PassWord,CallBack CB,long LimitSpeed) {		//初始化
 		// TODO Auto-generated constructor stub
 		this.client = client;
 		this.INS = INS;
@@ -73,6 +118,10 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 		this.RC4PassWord = RC4PassWord;
 		this.CB = CB;
 		this.index = 0;
+		this.Sindex  = 0;
+		this.limit = true;
+		this.LimitSpeed = LimitSpeed;
+		SW = new SpeedWatch(this);		//新建监视器
 	}
 	
 	@Override
@@ -80,38 +129,54 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 		// TODO Auto-generated method stub
 		try {
 		byte[] bData = new byte[1024];
-		int length;
+		int length = 0;
 		byte[]sData;
-		SpeedWatch SW = new SpeedWatch(this);
+		
 		this.addObserver(SW);
 		
 		Thread thread = new Thread(SW);
 		thread.start();
 		
-		if(OPS.OS!=null) {
-			while((length = INS.read(bData, 0, bData.length))!=-1) {
-				//System.out.println(length);
-				index++;
-				//System.out.println(index);
-				OPS.OS.write(bData, 0, length);
-				OPS.OS.flush();
+		if(OPS.OS!=null) {				//文件输出限速
+			while(SW.Nclose) {
+				if(LimitSpeed<0||limit) {				//检测是否限速
+					while(limit&&(length = INS.read(bData, 0, bData.length))!=-1) {
+						//System.out.println(length);
+						index++;
+						Sindex++;
+						//System.out.println(index);
+						OPS.OS.write(bData, 0, length);
+						OPS.OS.flush();
+						if(Sindex>=LimitSpeed) limit = false;			//达到最高速度限速
+					}
+					if(length == -1) {
+						super.setChanged();
+						notifyObservers();
+						
+					}
+				}
+				else {
+					try {
+						TimeUnit.MILLISECONDS.sleep(10);			//限速睡眠1小段时间
+					}catch(InterruptedException ie) {
+						System.out.println("Speed limit error");
+					}
+				}
 			}
-			
-			super.setChanged();
-			notifyObservers();
-			
+		
 			OPS.OS.close();
 			INS.close();
 		}
 	
-		else {
+		else {						//文件输入由文件发送端进行限速控制 因此不需要进行限速管理
 			while((length = INS.read(bData, 0, bData.length))!=-1) {
-				//System.out.println(length);
-				//sData = RC4.HloveyRC4(bData, RC4PassWord);
-				index++;
-				OPS.RAF.write(bData, 0, length);
+					//System.out.println(length);
+					//sData = RC4.HloveyRC4(bData, RC4PassWord);
+					index++;
+					Sindex++;
+					OPS.RAF.write(bData, 0, length);
+				//	if(Sindex>LimitSpeed) limit = false;		//与上对称
 			}
-			
 			super.setChanged();
 			notifyObservers();
 			
@@ -194,22 +259,24 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 	private int HTTPS_PORT = 0;
 	private String mood = null;
 	private String NewFileName = null;
-	private String command = null;
+	private String LSpeed = null;
 	private String SFileName = null;
 	private int num = 0;
 	private ArrayList<SocketClient>ClientList = null;
 	private ArrayList<Thread> ThreadList = null;
+	private long LimitSpeed = -1;
 	
-	SFClientCallBack(FileSplit FS,String hostName,int port, String mood,String NewFileName,String command,String SFileName,ArrayList<SocketClient>ClientList,ArrayList<Thread>ThreadList){
+	SFClientCallBack(FileSplit FS,String hostName,int port, String mood,String NewFileName,String LSpeed,String SFileName,ArrayList<SocketClient>ClientList,ArrayList<Thread>ThreadList){
 		this.FS = FS;
 		this.hostName = hostName;
 		this.HTTPS_PORT = port;
 		this.mood = mood;
 		this.NewFileName = NewFileName;
-		this.command = command;
+		this.LSpeed = LSpeed;
 		this.SFileName = SFileName;
 		this.ClientList = ClientList;
 		this.ThreadList = ThreadList;
+		LimitSpeed = Long.parseLong(LSpeed);
 		try {
 		FS.splitBySize(NewFileName, 1024*60,SFClientCallBack.this);
 		System.out.println("all num:"+FS.num);
@@ -240,11 +307,37 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 	
 		File file = new File(NewFileName);
 		file.delete();
+		if(LimitSpeed>0) {
+			for(int i = 0;i<FS.num;i++) {													//开启多个传输客户端嵌套字
+				System.out.println("Split send start");
 		
+				SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part");
+				
+				System.out.println(i+"begin");
+				
+				if (SSC.client.isClosed())
+					System.out.println("CLOSEDDDDD");
+				else System.out.println("START");
+				SSC.INS = IOStream.BufferedIn(IOStream.DataIn(SSC.FileSend(NewFileName+"_"+(int)(i+1)+".part",SFileName+".gz_"+(int)(i+1)+".part")));
+				SSC.OPS.OS = IOStream.BufferedOut(IOStream.Dataout(SSC.client.getOutputStream()));
+				
+				ClientList.add(SSC);
+				splitSpeedWatch SSW = new splitSpeedWatch();
+				ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, "...",SFSCB,LimitSpeed);
+				SSW.addSpeedWatch(CFT.SW);
+				System.out.println("start run");
+				Thread threadSW = new Thread(SSW);
+				threadSW.start();
+				CFT.run(); 					//直接启动run函数来单一执行
+			}
+
+		}
+		else {
+			splitSpeedWatch SSW = new splitSpeedWatch();
 		for(int i = 0;i<FS.num;i++) {													//开启多个传输客户端嵌套字
 			System.out.println("Split send start");
 	
-			SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.command,SFileName+".gz_"+(int)(i+1)+".part");
+			SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part");
 			
 			System.out.println(i+"begin");
 			
@@ -256,19 +349,21 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 			
 			ClientList.add(SSC);
 			
-			ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, "...",SFSCB);
+			ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, "...",SFSCB,-1);
+			SSW.addSpeedWatch(CFT.SW);
 			Thread thread = new Thread(CFT);
 			System.out.println("start run");
 			ThreadList.add(thread);
 			thread.start();
-
 		}
+		Thread threadSW = new Thread(SSW);
+		threadSW.start();
 		
 	//	for(int i = 0;i<ThreadList.size();i++) {
 		//	Thread thread = ThreadList.get(i);
 		//	System.out.println(i);
 			
-	//	}
+	}
 		
 	}
 	
@@ -310,22 +405,22 @@ public class SocketClient implements CallBack{		//增加回调接口
 	InputStream INS = null;											//传输流
 	OPSW OPS = null;
 	String mood = null;
-	String command = null;
+	String LSpeed = null;
 	String FileName = null;
 	String SFileName = null;
 	
-	public SocketClient(String hostName,int port,String mood,String FileName,String command,String SFileName) throws Exception {				
+	public SocketClient(String hostName,int port,String mood,String FileName,String LSpeed,String SFileName) throws Exception {				
 		//SSLContext context  = SSLContext.getInstance("SSL");			//SSL环境初始化
 		
 		this.HTTPS_PORT  = port;
 		this.hostName = hostName;
 		this.mood = mood;
-		this.command = command;
+		this.LSpeed = LSpeed;
 		this.FileName = FileName;
 		this.SFileName = SFileName;
 		this.OPS = new OPSW(null, null);
 		
-		
+		//服务器无法加载SSL证书 废弃
 		//KeyStore trustKS = KeyStore.getInstance("JKS");					//密匙仓库
 	//	trustKS.load(new FileInputStream("SSLKey"),"123456789".toCharArray());	//保存服务器授权证书
 		//TrustManagerFactory kmf = TrustManagerFactory.getInstance("Sunx509");	//加载信任证书仓库
@@ -336,7 +431,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 		client = new Socket(hostName,port);			//得到套接字
 		
 		DataOutputStream DOS = new DataOutputStream(client.getOutputStream());		//向服务器发送传输命令
-		DOS.writeUTF(mood+":"+FileName+":"+command+":"+SFileName);
+		DOS.writeUTF(mood+":"+FileName+":"+LSpeed+":"+SFileName);
 		
 	}
 	
@@ -355,13 +450,15 @@ public class SocketClient implements CallBack{		//增加回调接口
 		return client==null?null:client.getInputStream();
 	}
 	
-	public void ClientFirstStart(String mood,String FileName,String command,String SFileName) {	//mood:读/写 FileName：操作文件名 command：文件是否加密选项	在接收请求后执行
+	public void ClientFirstStart(String mood,String FileName,String LSpeed,String SFileName) {	//mood:读/写 FileName：操作文件名 LSpeed：限制速度	 在接收请求后执行 SFileName 目的文件名
 		try {	
 			
 			switch(mood) {
 			case "Send" :														
 			//传输操作
 			{
+				long LS = Long.parseLong(LSpeed);		//获取传输速度
+				
 				File file = new File(FileName);
 				if(!file.exists()) {
 					System.out.println("File not exits!");
@@ -375,9 +472,13 @@ public class SocketClient implements CallBack{		//增加回调接口
 						
 						OPS.OS = IOStream.BufferedOut(IOStream.Dataout(client.getOutputStream()));
 						
-						ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this);			//创建传输线程
+						ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this,LS);			//创建传输线程
 						Thread thread = new Thread(CFT);
+						splitSpeedWatch SSW = new splitSpeedWatch();
+						SSW.addSpeedWatch(CFT.SW);
+						Thread threadSW = new Thread(SSW);
 						thread.start();
+						threadSW.start();
 						
 					};break;
 				case 2 : 					//大于10M的文件压缩传输
@@ -388,10 +489,13 @@ public class SocketClient implements CallBack{		//增加回调接口
 					
 					OPS.OS = IOStream.BufferedOut(IOStream.GZipout(IOStream.Dataout(client.getOutputStream())));
 					
-					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this);			//创建传输线程
+					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this,LS);			//创建传输线程
 					Thread thread = new Thread(CFT);
+					splitSpeedWatch SSW = new splitSpeedWatch();
+					SSW.addSpeedWatch(CFT.SW);
+					Thread threadSW = new Thread(SSW);
 					thread.start();
-					
+					threadSW.start();
 				};break;
 				case 3 : {					//大于1G的文件分段压缩传输
 					client.close();		//关闭当前嵌套字
@@ -411,7 +515,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					FileSplit FS = new FileSplit();
 					System.out.println("spliting");
 					//启用带回调函数的类实例进行传输
-					SFClientCallBack SFCCB = new SFClientCallBack(FS, this.hostName, this.HTTPS_PORT, this.mood, NewFileName, this.command, SFileName, ClientList, ThreadList);
+					SFClientCallBack SFCCB = new SFClientCallBack(FS, this.hostName, this.HTTPS_PORT, this.mood, NewFileName, this.LSpeed, SFileName, ClientList, ThreadList);
 					
 				};break;
 				default : break;
@@ -428,6 +532,9 @@ public class SocketClient implements CallBack{		//增加回调接口
 				
 				System.out.println(SocketFileName+" "+fileLength);
 				
+				splitSpeedWatch SSW = new splitSpeedWatch();
+
+				Thread threadSW = new Thread(SSW);
 				
 				String[] FNS = SocketFileName.split("@");
 				if(FNS.length>1&&FNS[FNS.length-1].equals("SF") ) {					//若为分段文件
@@ -438,10 +545,14 @@ public class SocketClient implements CallBack{		//增加回调接口
 					
 					MergeFileCallBack MFCB = new MergeFileCallBack(FileName, (int)fileLength, SocketClient.this);
 					
+					long speedlimit = Long.parseLong(this.LSpeed);
+					speedlimit=(long)Math.ceil(speedlimit/fileLength);			//分段限速
+					this.LSpeed = Long.toString(speedlimit);
+					
 					for(int i = 0;i<fileLength;i++) {
 						String NewFileName  = this.FileName+".gz_"+(int)(i+1)+".part";			//分段文件各文件名 待修改
 						System.out.println("Split file read start");
-						SocketClient SSC = new SocketClient(hostName, HTTPS_PORT,this.mood,NewFileName,this.command,this.SFileName+".gz_"+(i+1)+".part");
+						SocketClient SSC = new SocketClient(hostName, HTTPS_PORT,this.mood,NewFileName,this.LSpeed,this.SFileName+".gz_"+(i+1)+".part");
 						
 						DataInputStream SDOS = new DataInputStream(SSC.client.getInputStream());
 						String SplitFileName = SDOS.readUTF();
@@ -454,13 +565,16 @@ public class SocketClient implements CallBack{		//增加回调接口
 						SSC.OPS.RAF = SSC.FileGet(NewFileName,SFileName+"gz_"+(i+1)+".part",sflength);
 						ClientList.add(SSC);
 						
-						ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, this.RC4PassWord,MFCB);
-				
+						ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, this.RC4PassWord,MFCB,-1);		//限速由传输发送方控制 但需要对分段限速进行技术
+						
+						SSW.addSpeedWatch(CFT.SW);
+						
 						Thread thread = new Thread(CFT);
 						ThreadList.add(thread);
 						thread.start();
 						//需要对分段文件进行整合
 					}
+					threadSW.start();
 				}
 				
 				else {
@@ -472,9 +586,13 @@ public class SocketClient implements CallBack{		//增加回调接口
 					INS = IOStream.BufferedIn(IOStream.DataIn(client.getInputStream()));
 					OPS.RAF = FileGet(FileName,SocketFileName,fileLength);
 					
-					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, this.RC4PassWord,SocketClient.this);
+					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, this.RC4PassWord,SocketClient.this,-1);
 					
+					SSW.addSpeedWatch(CFT.SW);
+					
+					threadSW.start();
 					CFT.run();
+					
 					
 					System.out.println(SocketFileName);
 					
@@ -502,7 +620,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 		}
 	}
 	
-	public FileInputStream FileSend(String fileName,String SFileName) {
+	public FileInputStream FileSend(String fileName,String SFileName) {					//传输文件流初始化
 		File file = new File(fileName);
 		int num = 0;
 		if(!file.exists()){System.out.println("file not exits!");return null;}
@@ -616,7 +734,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 	
 	public static void main(String[] args) {
 		try {
-			SocketClient Client = new SocketClient("localhost",4000,args[0],args[1],args[2],args[3]);
+			SocketClient Client = new SocketClient("localhost",4000,args[0],args[1],args[2],args[3]);			//命令行格式  Read/Send 本地文件 限速 目的文件
 			Client.ClientFirstStart(args[0], args[1], args[2],args[3]);
 			//Client.FileTranslate(new FileInputStream("./in.bin"), new BufferedOutputStream(Client.getClientOutputStream())); 
 		}catch(Exception ie) {}

@@ -11,11 +11,57 @@ import java.lang.*;
 import javax.net.*;
 import javax.net.ssl.*;
 
-class CreatThread implements Runnable{		//单次接收请求线程
+@SuppressWarnings("deprecation")
+class ServerSpeedLimit implements Runnable,Observer{			//服务端速度限制功能 删去速度显示
+	
+	public long start = 0;
+	public long end = 0;
+	public boolean Nclose = true;
+	private long sum = 0;
+	private CreatThread server = null;
+	
+	ServerSpeedLimit(CreatThread server){
+		this.server = server;
+	}
+	
+	@Override
+	public void update(Observable o, Object arg) {
+		// TODO Auto-generated method stub
+		Nclose = false;				//关闭计时器
+		System.out.println("close");
+	}
+
+	@Override
+	public void run() {
+		// TODO Auto-generated method stub
+		while(Nclose) {
+			try {
+				TimeUnit.SECONDS.sleep(1);
+			}catch(InterruptedException ie) {System.out.println("clock error");}
+			if(Nclose) {
+				server.Sindex = 0;		//重置限制条件
+				server.limit = true;
+				System.out.println("flush");
+			}
+			
+		}
+		return ;
+	}
+
+}
+
+@SuppressWarnings("deprecation")
+class CreatThread extends Observable implements Runnable{		//单次接收请求线程
+	
 	InputStream in = null;
 	OPSW out = null;
 	Socket client = null;
 	String[] SS = null;
+	
+	public long index = 0;
+	public boolean limit = true;
+	private long LimitSpeed = -1;
+	public long Sindex = 0;
 	
 	CreatThread(Socket socket) throws Exception{		//线程建立
 		this.client = socket;
@@ -23,6 +69,8 @@ class CreatThread implements Runnable{		//单次接收请求线程
 	
 	public void FileSend(String[] SS) {
 		File file = new File(SS[3]);
+		this.LimitSpeed = Long.parseLong(SS[2]);
+		
 		int num = 0;
 		if(!file.exists()) {			//文件存在检验
 			File zfile = new File(SS[3]+".gz");
@@ -78,6 +126,7 @@ class CreatThread implements Runnable{		//单次接收请求线程
 		try {
 		DataOutputStream DOS = new DataOutputStream(client.getOutputStream());
 		DataInputStream DIS = new DataInputStream(client.getInputStream());
+		this.LimitSpeed = -1;
 		
 		String FileName = DIS.readUTF();				//服务端直接接收从客户端发来的文件
 		long fileLength = DIS.readLong();
@@ -153,19 +202,43 @@ class CreatThread implements Runnable{		//单次接收请求线程
 		case "Send" : FileGet(SS);break;					
 		}
 		
+		//传输开始
 		System.out.println("running");
 		if(client.isClosed()) {System.out.println("Client is closed");return ;}
 		else System.out.println("file translate start!");
 		try {
 			byte[] bData = new byte[1024];
-			int length;
+			int length = 0;
 			OutputStream out_;
+			ServerSpeedLimit SSLimit = new ServerSpeedLimit(this);			//添加速度监听器
+			this.addObserver(SSLimit);
+			Thread ThreadSSW = new Thread(SSLimit);
+			ThreadSSW.start();
+			
 			if(this.out.OS!=null)  {									//迎合断点续传需要RandomAccessFile进行
 				out_ =this.out.OS;
-				while((length = in.read(bData, 0, bData.length))!=-1) {
-					System.out.println(length);
-					out_.write(bData, 0, length);
-					out_.flush();
+				while(SSLimit.Nclose) {
+					if(this.LimitSpeed<0 || this.limit) {
+						while(limit&&(length = in.read(bData, 0, bData.length))!=-1) {
+							index++;
+							Sindex++;
+							System.out.println(length);
+							out_.write(bData, 0, length);
+							out_.flush();
+							if(Sindex>=LimitSpeed) limit = false;
+						}
+						if(length == -1) {
+							super.setChanged();
+							notifyObservers();
+						}
+					}
+					else {
+						try {
+							TimeUnit.MILLISECONDS.sleep(10);			//限速睡眠小段时间
+						}catch(InterruptedException ie) {
+							System.out.println("Speed limit error");
+						}
+					}
 				}
 				out.OS.close();
 			}
@@ -175,6 +248,8 @@ class CreatThread implements Runnable{		//单次接收请求线程
 					System.out.println(length);
 					RAF.write(bData, 0, length);
 				}
+				super.setChanged();
+				notifyObservers();
 				RAF.close();
 			}
 			in.close();
@@ -202,6 +277,7 @@ public class SSLSocketServer {					//服务器
 	private static ServerSocket getSocket(int thePort) {				//服务器嵌套字建立
 		ServerSocket s = null;
 		try {
+			//服务器无法安装SSL证书 作废
 			//String key = "F:\\JAVA\\JavaSocket\\src\\SSLKey";		//证书名
 			//char keyStorePass[] = "123456789".toCharArray();		//证书密码
 			//char keyPassword[] = "123456789".toCharArray();		//证书别称所使用的密码
