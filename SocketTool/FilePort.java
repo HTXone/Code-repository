@@ -52,7 +52,7 @@ public class FilePort{
 		try {
 			FIS = new FileInputStream(file);
 			//ZipEntry ZE = new ZipEntry()
-			byte[] bData = new byte[1024*1024];
+			byte[] bData = new byte[1024*10];
 			String oldFileName = file.getName();
 			BOS = new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(oldFileName+".gz")));
 			int length;
@@ -77,7 +77,7 @@ public class FilePort{
 			BufferedInputStream BIS = new BufferedInputStream(new GZIPInputStream(new FileInputStream(FileName1)));
 			BufferedOutputStream BOS = new BufferedOutputStream(new FileOutputStream(FileName2));
 			
-			byte[] bData = new byte[1024*1024];
+			byte[] bData = new byte[1024*10];
 			int length;
 			while((length = BIS.read(bData, 0, bData.length))!=-1) {
 				TimeUnit.MILLISECONDS.sleep(3);
