@@ -34,6 +34,7 @@ class Contorl implements Runnable{
 	
 }
 
+
 public class MainClient {
 	
 	private KeyPair keyPair = null;
@@ -134,10 +135,11 @@ public class MainClient {
 		}
 	}
 	
+	
 	//文件属性展示 返回一个字符串容器 格式：File:FileName FileLength OriginalFileLength FileGetTime
-	public Vector FileShow() {
+	public Vector<String> FileShow() {
 		
-		Vector args = new Vector<String>();
+		Vector<String> args = new Vector<String>();
 		
 		try {
 			DOS.writeUTF(RSA.encryptByPrivateKey("FileShow:"+UserName, RSAPrivateKey));

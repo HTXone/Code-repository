@@ -32,7 +32,9 @@ class ChatSocket implements Runnable{
 	
 	private PostgreSQL SQL = null;
 	
-	private static final String BTableName = "BaseTable";
+	private static final String BTableName = "BaseDataTable";
+	
+	private static final String BasePath = "F://UserDir//";
 	
 	ChatSocket(Socket client){
 		this.client = client;
@@ -57,6 +59,10 @@ class ChatSocket implements Runnable{
 		}
 	}
 	
+	ChatSocket(){
+		//SQL = new PostgreSQL();
+	}
+	
 	//关闭
 	public void Close() {
 		try {
@@ -70,19 +76,22 @@ class ChatSocket implements Runnable{
 	//注册(待完善)
 	public void Logon(String[] CMDS) {			//注册格式：Logon:UserName:UserPWD;
 		try {
-			ResultSet result = SQL.Search(BTableName, "*", "WHERE NAME = "+CMDS[1]);
-			if(result.next()) {
+			ResultSet result = SQL.Search(BTableName, "*", "WHERE UserName = "+CMDS[1]);
+			if(result!=null) {
 				DOS.writeUTF(RSA.encryptByPrivateKey("Logon:False:UserNameAlreadyExits", RSAPrivateKey));		//用户名已存在
 			}
 			else {
+				
 				File dir = new File(CMDS[1]);
 				if(!dir.exists()) {
 					dir.mkdir();
 				}
 				
-				SQL.Insert(BTableName, "..."); 					//未完成
+				SQL.Insert(BTableName, "(UserName,UserPWD,UserPath) VALUES ('"+CMDS[1]+"','"+HashCipher.Cihper(CMDS[2])+"','"+BasePath+CMDS[1]+"')"); 					//未完成
 				
-				SQL.CreatNewTable(CMDS[1], "...");					//未完成
+				System.out.println("Over");
+				
+				SQL.CreatNewTable(CMDS[1], "FileName Text Not Null,FileLength Long,FileGetTime Text");					//未完成
 			}
 			
 			DOS.writeUTF(RSA.encryptByPrivateKey("Logon:True", RSAPrivateKey));
@@ -100,15 +109,39 @@ class ChatSocket implements Runnable{
 	//登录
 	public boolean Login(String[] CMDS) {
 		try {
-			if(CMDS[1].equals(UserName)&&CMDS[2].equals(UserPWD)) {
+			
+			ResultSet result = SQL.Search(BTableName, "*", "Where UserName = '"+CMDS[1]+"'");
+			
+			if(result!=null&&result.next())
+				
+			{
+				
+				//System.out.println(result.getString("UserPWD"));
+				//System.out.println((HashCipher.Cihper(CMDS[2])));
+				
+				char ca1[] = result.getString("UserPWD").toCharArray();
+				
+				char ca2[] = HashCipher.Cihper(CMDS[2]).toCharArray();
+				
+				for(int i = 0;i<ca2.length;i++) {
+					if(ca1[i]!=ca2[i]) {
+						System.out.println(i);
+						return false;
+					}
+				}
+				
+				System.out.println("True");
+				
 				this.IsLogin = true;
 				
 				DOS.writeUTF(RSA.encryptByPrivateKey("login:Success", RSAPrivateKey));
 				
 				this.DESKey = Long.toString(new Date().getTime()%100000000);
 				
+				
 				DOS.writeUTF(RSA.encryptByPrivateKey(Path, RSAPrivateKey));
 				DOS.writeUTF(RSA.encryptByPrivateKey(DESKey, RSAPrivateKey));
+				
 				
 				return true;
 			}
@@ -266,6 +299,12 @@ public class MainServer {
 		MS.init();
 		
 		MS.Accept();
+		//ChatSocket CS = new ChatSocket();
+		
+		//String[] CMDS = {"Login","TestUser","PassWord"};
+		
+		//CS.Logon(CMDS);
+		//System.out.println(CS.Login(CMDS));
 	}
 	
 }
