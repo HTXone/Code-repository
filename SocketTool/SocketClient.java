@@ -269,7 +269,9 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 	private ArrayList<Thread> ThreadList = null;
 	private long LimitSpeed = -1;
 	
-	SFClientCallBack(FileSplit FS,String hostName,int port, String mood,String NewFileName,String LSpeed,String SFileName,ArrayList<SocketClient>ClientList,ArrayList<Thread>ThreadList){
+	private String DESPassWord = null;
+	
+	SFClientCallBack(FileSplit FS,String hostName,int port, String mood,String NewFileName,String LSpeed,String SFileName,ArrayList<SocketClient>ClientList,ArrayList<Thread>ThreadList,String DESPassWord){
 		this.FS = FS;
 		this.hostName = hostName;
 		this.HTTPS_PORT = port;
@@ -279,6 +281,9 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 		this.SFileName = SFileName;
 		this.ClientList = ClientList;
 		this.ThreadList = ThreadList;
+		
+		this.DESPassWord = DESPassWord;
+		
 		LimitSpeed = Long.parseLong(LSpeed);
 		try {
 		FS.splitBySize(NewFileName, 1024*60,SFClientCallBack.this);
@@ -314,7 +319,7 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 			for(int i = 0;i<FS.num;i++) {													//开启多个传输客户端嵌套字
 				System.out.println("Split send start");
 		
-				SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part");
+				SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part",this.DESPassWord);
 				
 				System.out.println(i+"begin");
 				
@@ -340,7 +345,7 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 		for(int i = 0;i<FS.num;i++) {													//开启多个传输客户端嵌套字
 			System.out.println("Split send start");
 	
-			SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part");
+			SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part",this.DESPassWord);
 			
 			System.out.println(i+"begin");
 			
@@ -400,7 +405,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 	InetAddress hostAddress = null;
 	SocketFactory factory = null;
 	Socket client = null;
-	private String DESPassWord = "12345678";
+	private String DESPassWord = null;
 	private String RC4PassWord = "123456789";
 	private String SSLPWD = "123456789";
 	private String SSLKeyPath = "SSLKey";
@@ -412,7 +417,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 	String FileName = null;
 	String SFileName = null;
 	
-	public SocketClient(String hostName,int port,String mood,String FileName,String LSpeed,String SFileName) throws Exception {				
+	public SocketClient(String hostName,int port,String mood,String FileName,String LSpeed,String SFileName,String DESPassWord) throws Exception {				
 		//SSLContext context  = SSLContext.getInstance("SSL");			//SSL环境初始化
 		
 		this.HTTPS_PORT  = port;
@@ -421,6 +426,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 		this.LSpeed = LSpeed;
 		this.FileName = FileName;
 		this.SFileName = SFileName;
+		this.DESPassWord = DESPassWord;
 		this.OPS = new OPSW(null, null);
 		
 		//服务器无法加载SSL证书 废弃
@@ -434,7 +440,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 		client = new Socket(hostName,port);			//得到套接字
 		
 		DataOutputStream DOS = new DataOutputStream(client.getOutputStream());		//向服务器发送传输命令
-		DOS.writeUTF(mood+":"+FileName+":"+LSpeed+":"+SFileName);
+		DOS.writeUTF(mood+"#"+FileName+"#"+LSpeed+"#"+SFileName+"#"+DESPassWord);
 		
 	}
 	
@@ -471,7 +477,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 				switch(FilePort.FileSize(file)) {
 				case 1 : 
 					{
-						INS = IOStream.BufferedIn(IOStream.DataIn(FileSend(FileName,SFileName)));
+						INS = IOStream.DESIn(IOStream.DataIn(FileSend(FileName,SFileName)), DESPassWord);
 						
 						OPS.OS = IOStream.BufferedOut(IOStream.Dataout(client.getOutputStream()));
 						
@@ -488,7 +494,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 				{
 					SFileName += ".gz";
 					
-					INS = IOStream.BufferedIn(IOStream.DataIn(FileSend(FileName,SFileName)));	//压缩传输流
+					INS = IOStream.DESIn(IOStream.DataIn(FileSend(FileName,SFileName)), DESPassWord);	//压缩传输流
 					
 					OPS.OS = IOStream.BufferedOut(IOStream.GZipout(IOStream.Dataout(client.getOutputStream())));
 					
@@ -518,7 +524,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					FileSplit FS = new FileSplit();
 					System.out.println("spliting");
 					//启用带回调函数的类实例进行传输
-					SFClientCallBack SFCCB = new SFClientCallBack(FS, this.hostName, this.HTTPS_PORT, this.mood, NewFileName, this.LSpeed, SFileName, ClientList, ThreadList);
+					SFClientCallBack SFCCB = new SFClientCallBack(FS, this.hostName, this.HTTPS_PORT, this.mood, NewFileName, this.LSpeed, SFileName, ClientList, ThreadList,this.DESPassWord);
 					
 				};break;
 				default : break;
@@ -555,7 +561,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					for(int i = 0;i<fileLength;i++) {
 						String NewFileName  = this.FileName+".gz_"+(int)(i+1)+".part";			//分段文件各文件名 待修改
 						System.out.println("Split file read start");
-						SocketClient SSC = new SocketClient(hostName, HTTPS_PORT,this.mood,NewFileName,this.LSpeed,this.SFileName+".gz_"+(i+1)+".part");
+						SocketClient SSC = new SocketClient(hostName, HTTPS_PORT,this.mood,NewFileName,this.LSpeed,this.SFileName+".gz_"+(i+1)+".part",this.DESPassWord);
 						
 						DataInputStream SDOS = new DataInputStream(SSC.client.getInputStream());
 						String SplitFileName = SDOS.readUTF();
@@ -635,9 +641,10 @@ public class SocketClient implements CallBack{		//增加回调接口
 			DOS.writeLong(file.length());
 			
 			long fileLength = DIS.readLong();
-			FileInputStream FIS = FilePort.getFIS(file, fileLength);		//文件传输位置定位
 			
 		
+			
+			FileInputStream FIS = FilePort.getFIS(file, fileLength);		//文件传输位置定位
 			
 			return FIS;
 		}catch(IOException ie) {
@@ -647,7 +654,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 		}
 	}
 		
-	public FileOutputStream FileGet(String FileName,String SFileName,long fileLength) {
+	public OutputStream FileGet(String FileName,String SFileName,long fileLength) {
 		try {
 			DataOutputStream DOS = new DataOutputStream(client.getOutputStream());
 			DataInputStream DIS = new DataInputStream(client.getInputStream());
@@ -681,9 +688,9 @@ public class SocketClient implements CallBack{		//增加回调接口
 				INS = client.getInputStream();
 				OPS.OS = FOS;
 			}
-			
-			return FOS;
-		}catch(IOException ie) {
+			OutputStream OS = IOStream.DESOut(IOStream.Dataout(FOS), DESPassWord);
+			return OS;
+		}catch(Exception ie) {
 			System.out.println("file get start error");
 			ie.printStackTrace();
 			return null;
@@ -739,7 +746,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 	
 	public static void main(String[] args) {
 		try {
-			SocketClient Client = new SocketClient("localhost",4000,args[0],args[1],args[2],args[3]);			//命令行格式  Read/Send 本地文件 限速 目的文件
+			SocketClient Client = new SocketClient("localhost",4000,args[0],args[1],args[2],args[3],args[4]);			//命令行格式  Read/Send 本地文件 限速 目的文件
 			Client.ClientFirstStart(args[0], args[1], args[2],args[3]);
 			//Client.FileTranslate(new FileInputStream("./in.bin"), new BufferedOutputStream(Client.getClientOutputStream())); 
 		}catch(Exception ie) {}

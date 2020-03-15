@@ -63,6 +63,8 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 	private long LimitSpeed = -1;
 	public long Sindex = 0;
 	
+	private String DESPassWord = "12345678"; 
+	
 	CreatThread(Socket socket) throws Exception{		//线程建立
 		this.client = socket;
 	}
@@ -108,7 +110,7 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 			
 			FileInputStream FIS = FilePort.getFIS(file, length);		//开启文件读取流
 
-			in = IOStream.BufferedIn(FIS);
+			in = IOStream.BufferedIn(IOStream.DESIn(IOStream.DataIn(FIS), DESPassWord));
 			out.OS = IOStream.BufferedOut(IOStream.Dataout(client.getOutputStream()));
 			
 			System.out.println("Over");
@@ -129,7 +131,12 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 		this.LimitSpeed = -1;
 		
 		String FileName = DIS.readUTF();				//服务端直接接收从客户端发来的文件
+		
+		System.out.println(FileName);
+		
 		long fileLength = DIS.readLong();
+		
+		System.out.println(fileLength);
 		
 		File file = new File(FileName);
 		FileOutputStream FOS;
@@ -139,7 +146,7 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 				FOS = new FileOutputStream(file,true);
 				in =client.getInputStream();
 				in = IOStream.BufferedIn(IOStream.DataIn(in));
-				out.OS = FOS;
+				out.OS = IOStream.DESOut(IOStream.Dataout(FOS), DESPassWord);
 			}
 			else {
 				file.delete();
@@ -147,25 +154,27 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 				FOS = new FileOutputStream(file,true);
 				in = client.getInputStream();
 				in = IOStream.BufferedIn(IOStream.DataIn(in));
-				out.OS = FOS;
+				out.OS = IOStream.DESOut(IOStream.Dataout(FOS), DESPassWord);
 			}
 		}else {
 			DOS.writeLong(0);
 			FOS = new FileOutputStream(file,true);
 			in = client.getInputStream();
 			in = IOStream.BufferedIn(IOStream.DataIn(in));
-			out.OS = FOS;
+			out.OS = IOStream.DESOut(IOStream.Dataout(FOS), DESPassWord);
 		}
 		
-		}catch(IOException ie) {
+		}catch(Exception ie) {
 			try{
+				ie.printStackTrace();
 				client.close();
+				System.out.println("This Client close");
 				return ;
 			}catch(Exception e) {
 				System.out.println("file get start error");
 				e.printStackTrace();	
 			}
-			System.out.println("This Client close");
+			
 		}
 			
 	}
@@ -190,7 +199,15 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 		try{
 			DataInputStream DIS = new DataInputStream(client.getInputStream());
 			String command = DIS.readUTF();
-			SS = command.split(":");
+			
+			System.out.println(command);
+			
+			SS = command.split("#");
+			
+			this.DESPassWord = SS[4];
+			
+			System.out.println(DESPassWord);
+			
 			out = new OPSW(null, null);
 			
 		}catch(IOException ie) {
