@@ -110,7 +110,9 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 	public long LimitSpeed = -1;		//限制最大传输速度 -1时不限速
 	public SpeedWatch SW = null;
 	
-	ClientFileTranslate(Socket client,InputStream INS,OPSW OPS,String RC4PassWord,CallBack CB,long LimitSpeed) {		//初始化
+	private String mode = null;
+	
+	ClientFileTranslate(Socket client,InputStream INS,OPSW OPS,String RC4PassWord,CallBack CB,long LimitSpeed,String mode) {		//初始化
 		// TODO Auto-generated constructor stub
 		this.client = client;
 		this.INS = INS;
@@ -121,6 +123,7 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 		this.Sindex  = 0;
 		this.limit = true;
 		this.LimitSpeed = LimitSpeed;
+		this.mode = mode;
 		SW = new SpeedWatch(this);		//新建监视器
 	}
 	
@@ -147,7 +150,7 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 						//System.out.println(index);
 						OPS.OS.write(bData, 0, length);
 						OPS.OS.flush();
-						if(Sindex>=LimitSpeed) limit = false;			//达到最高速度限速
+						if(mode.equals("Send")&&LimitSpeed>0&&Sindex>=LimitSpeed) limit = false;			//达到最高速度限速
 					}
 					if(length == -1) {
 						super.setChanged();
@@ -323,7 +326,7 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 				
 				ClientList.add(SSC);
 				splitSpeedWatch SSW = new splitSpeedWatch();
-				ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, "...",SFSCB,LimitSpeed);
+				ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, "...",SFSCB,LimitSpeed,"Send");
 				SSW.addSpeedWatch(CFT.SW);
 				System.out.println("start run");
 				Thread threadSW = new Thread(SSW);
@@ -349,7 +352,7 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 			
 			ClientList.add(SSC);
 			
-			ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, "...",SFSCB,-1);
+			ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, "...",SFSCB,-1,"Send");
 			SSW.addSpeedWatch(CFT.SW);
 			Thread thread = new Thread(CFT);
 			System.out.println("start run");
@@ -472,7 +475,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 						
 						OPS.OS = IOStream.BufferedOut(IOStream.Dataout(client.getOutputStream()));
 						
-						ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this,LS);			//创建传输线程
+						ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this,LS,"Send");			//创建传输线程
 						Thread thread = new Thread(CFT);
 						splitSpeedWatch SSW = new splitSpeedWatch();
 						SSW.addSpeedWatch(CFT.SW);
@@ -489,7 +492,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					
 					OPS.OS = IOStream.BufferedOut(IOStream.GZipout(IOStream.Dataout(client.getOutputStream())));
 					
-					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this,LS);			//创建传输线程
+					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this,LS,"Send");			//创建传输线程
 					Thread thread = new Thread(CFT);
 					splitSpeedWatch SSW = new splitSpeedWatch();
 					SSW.addSpeedWatch(CFT.SW);
@@ -562,10 +565,10 @@ public class SocketClient implements CallBack{		//增加回调接口
 						
 						SSC.INS = IOStream.BufferedIn(IOStream.DataIn(SSC.client.getInputStream()));
 						
-						SSC.OPS.RAF = SSC.FileGet(NewFileName,SFileName+"gz_"+(i+1)+".part",sflength);
+						SSC.OPS.OS = SSC.FileGet(NewFileName,SFileName+"gz_"+(i+1)+".part",sflength);
 						ClientList.add(SSC);
 						
-						ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, this.RC4PassWord,MFCB,-1);		//限速由传输发送方控制 但需要对分段限速进行技术
+						ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, this.RC4PassWord,MFCB,-1,"Read");		//限速由传输发送方控制 但需要对分段限速进行技术
 						
 						SSW.addSpeedWatch(CFT.SW);
 						
@@ -584,9 +587,9 @@ public class SocketClient implements CallBack{		//增加回调接口
 					else System.out.println("Client is still work");
 					
 					INS = IOStream.BufferedIn(IOStream.DataIn(client.getInputStream()));
-					OPS.RAF = FileGet(FileName,SocketFileName,fileLength);
+					OPS.OS = FileGet(FileName,SocketFileName,fileLength);
 					
-					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, this.RC4PassWord,SocketClient.this,-1);
+					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, this.RC4PassWord,SocketClient.this,-1,"Read");
 					
 					SSW.addSpeedWatch(CFT.SW);
 					
@@ -634,6 +637,8 @@ public class SocketClient implements CallBack{		//增加回调接口
 			long fileLength = DIS.readLong();
 			FileInputStream FIS = FilePort.getFIS(file, fileLength);		//文件传输位置定位
 			
+		
+			
 			return FIS;
 		}catch(IOException ie) {
 			System.out.println("File send start error");
@@ -642,7 +647,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 		}
 	}
 		
-	public RandomAccessFile FileGet(String FileName,String SFileName,long fileLength) {
+	public FileOutputStream FileGet(String FileName,String SFileName,long fileLength) {
 		try {
 			DataOutputStream DOS = new DataOutputStream(client.getOutputStream());
 			DataInputStream DIS = new DataInputStream(client.getInputStream());
@@ -654,27 +659,27 @@ public class SocketClient implements CallBack{		//增加回调接口
 			}
 			
 			File file = new File(FileName);
-			RandomAccessFile FOS;
+			FileOutputStream FOS;
 			if(file.exists()) {
 				if(file.length()<fileLength) {
 					DOS.writeLong(file.length());
 					System.out.println("here right");
-					FOS = FilePort.getRAF(file, file.length());
+					FOS = new FileOutputStream(file,true);
 					INS =client.getInputStream();
-					OPS.RAF = FOS;
+					OPS.OS = FOS;
 				}
 				else {
 					file.delete();
 					DOS.writeLong(0);
-					FOS = new RandomAccessFile(file, "rw");
+					FOS = new FileOutputStream(file);
 					INS = client.getInputStream();
-					OPS.RAF = FOS;
+					OPS.OS = FOS;
 				}
 			}else {
 				DOS.writeLong(0);
-				FOS = new RandomAccessFile(file, "rw");
+				FOS = new FileOutputStream(file);
 				INS = client.getInputStream();
-				OPS.RAF = FOS;
+				OPS.OS = FOS;
 			}
 			
 			return FOS;

@@ -132,29 +132,29 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 		long fileLength = DIS.readLong();
 		
 		File file = new File(FileName);
-		RandomAccessFile FOS;
+		FileOutputStream FOS;
 		if(file.exists()) {
 			if(file.length()<fileLength) {
 				DOS.writeLong(file.length());
-				FOS = FilePort.getRAF(file, file.length());
+				FOS = new FileOutputStream(file,true);
 				in =client.getInputStream();
 				in = IOStream.BufferedIn(IOStream.DataIn(in));
-				out.RAF = FOS;
+				out.OS = FOS;
 			}
 			else {
 				file.delete();
 				DOS.writeLong(0);
-				FOS = new RandomAccessFile(file, "rw");
+				FOS = new FileOutputStream(file,true);
 				in = client.getInputStream();
 				in = IOStream.BufferedIn(IOStream.DataIn(in));
-				out.RAF = FOS;
+				out.OS = FOS;
 			}
 		}else {
 			DOS.writeLong(0);
-			FOS = new RandomAccessFile(file, "rw");
+			FOS = new FileOutputStream(file,true);
 			in = client.getInputStream();
 			in = IOStream.BufferedIn(IOStream.DataIn(in));
-			out.RAF = FOS;
+			out.OS = FOS;
 		}
 		
 		}catch(IOException ie) {
@@ -225,7 +225,7 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 							System.out.println(length);
 							out_.write(bData, 0, length);
 							out_.flush();
-							if(Sindex>=LimitSpeed) limit = false;
+							if(SS[0].equals("Read")&&LimitSpeed>0&&Sindex>=LimitSpeed) limit = false;
 						}
 						if(length == -1) {
 							super.setChanged();
