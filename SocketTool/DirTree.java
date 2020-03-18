@@ -110,7 +110,7 @@ public class DirTree {
 	public void initTree() {
 		SumTree = new String[10000];
 		
-		BaseFile = new File("SumTree.txt");
+		BaseFile = new File("Tree.txt");
 		
 		History = new Vector<Long>();
 		History.add((long)0);
@@ -118,13 +118,13 @@ public class DirTree {
 	}
 	
 	public long getNum(long sum) {				//哈希函数 从空余列中获取值
-		long num = sum%997;
+		long num = (sum+1)%997;
 		
 		try {
 			
 			File file = new File("SumTree.txt");
 			
-			FileInputStream FIS = FilePort.getFIS(file, num*1001+1);		//跳至指定行观察是否为空闲行
+			FileInputStream FIS = FilePort.getFIS(file, num*1002);		//跳至指定行观察是否为空闲行
 			
 			byte bData[] = new byte[1];
 			FIS.read(bData,0,1);
@@ -135,7 +135,7 @@ public class DirTree {
 				num+=i*i;
 				i++;
 				num = num%1000;
-				FIS = FilePort.getFIS(file, num*1001);
+				FIS = FilePort.getFIS(file, num*1002);
 				
 				FIS.read(bData,0,1);
 				
@@ -156,31 +156,32 @@ public class DirTree {
 		History.add(DirNum);				//将此文件夹路径存入记录数组
 		
 		try {
-			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1001);		//跳转至指定记录行
+			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1002);		//跳转至指定记录行
 			
-			byte bData[] = new byte[1001];
+			byte bData[] = new byte[1002];
 			
 			FIS.read(bData, 0, bData.length);
 			String LineInfo = new String(bData).split("#")[0];
 			
-			String[] LineInfoArgs = LineInfo.split(";",3);
+			TreeNode LineNode = new TreeNode(LineInfo);
 			
-			String DirInfo = LineInfoArgs[0].split("@@")[1];
+			//String DirInfo = LineInfoArgs[0].split("@@")[1];
 			
-			DirInfo = DirInfo+";"+LineInfoArgs[2];
+			String DirInfo = LineNode.getInfotxt().split("@@")[1]+";"+LineNode.getFiletxt();
 			
-			long SonDirNum = Long.valueOf(LineInfoArgs[1].split("@@")[3]);
+			long SonDirNum = LineNode.getSonNum();
 			
 			while(SonDirNum>0) {
-				FIS = FilePort.getFIS(BaseFile, SonDirNum*1001);
+				FIS = FilePort.getFIS(BaseFile, SonDirNum*1002);
 				
 				FIS.read(bData, 0, bData.length);
-				String SonDirInfo = (new String(bData).split("#")[0]).split(";",3)[1];
-				DirInfo = DirInfo+";"+ SonDirInfo.split("@@")[0];
+				String SonDirInfo = (new String(bData).split("#")[0]);
 				
-				SonDirNum = Long.valueOf(SonDirInfo.split("@@")[3]);
+				LineNode = new TreeNode(SonDirInfo);
+				DirInfo = DirInfo+";"+LineNode.getDirName()+"@@"+SonDirNum;
 				
-				DirInfo = DirInfo+"@@"+SonDirNum;
+				SonDirNum = LineNode.getNextNum();
+				//DirInfo = DirInfo+"@@"+SonDirNum;
 				
 			}
 			
@@ -195,9 +196,9 @@ public class DirTree {
 	
 	public String DirCheck(long DirNum) {		//检查文件夹 只返回文件夹相关信息
 		try {
-			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1001);
+			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1002);
 			
-			byte[] bData = new byte[1001];
+			byte[] bData = new byte[1002];
 			FIS.read(bData, 0, bData.length);
 			
 			String Info = (((new String(bData).split("#")[0]).split(";")[0]).split("@@")[1]);
@@ -213,35 +214,43 @@ public class DirTree {
 	public boolean DirMake(long DirNum,String NewName) {		//在指定文件夹下新建文件夹 成功返回true
 		long NewDirNum = this.getNum(DirSum);
 		try {
-			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1001);
-			byte[] bData = new byte[1001];
+			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1002);
+			byte[] bData = new byte[1002];
 			
 			FIS.read(bData, 0, bData.length);
 			
 			long preNum = DirNum;
 			String LastLine = new String(bData).split("#")[0];
-			long lastNum = Long.valueOf(LastLine.split(";")[2].split("@@")[3]);
+			TreeNode LastNode = new TreeNode(LastLine);
 			
-			while(lastNum!=0) {
+			long lastNum = LastNode.getSonNum();
+			if(lastNum>0) {
+			while(lastNum>0) {
 				preNum = lastNum;
 				
-				FIS = FilePort.getFIS(BaseFile, lastNum*1001);
+				FIS = FilePort.getFIS(BaseFile, lastNum*1002);
 				FIS.read(bData, 0, bData.length);
 				
 				LastLine = new String(bData).split("#")[0];
-				lastNum = Long.valueOf(LastLine.split(";")[2].split("@@")[3]);
+				
+				LastNode = new TreeNode(LastLine);
+				
+				lastNum = LastNode.getNextNum();
 
 			}
+			LastNode.setNextNum(NewDirNum);
+			}else {
+				LastNode.setSonNum(NewDirNum);
+			}
+			//LastLine = Args[0]+Args2[0]+Args2[1]+NewDirNum+Args2[3]+Args[2];		//前一文件夹记录变动
 			
-			String[] Args = LastLine.split(";",3);
-			String[] Args2 = Args[1].split("@@");
-			LastLine = Args[0]+Args2[0]+Args2[1]+NewDirNum+Args2[3]+Args[2];		//前一文件夹记录变动
-			String NewInfo = "T;"+NewName+"@@"+lastNum+"@@0@@0;#";
+			String NewInfo = "T@@Info;"+NewName+"@@"+preNum+"@@0@@0;;#";
 			
-			RandomAccessFile RAF = FilePort.getRAF(BaseFile, lastNum*1001);			//修改上一文件夹记录
-			RAF.write(LastLine.getBytes());
 			
-			RAF = FilePort.getRAF(BaseFile, NewDirNum*1001);						//修改新文件夹记录
+			RandomAccessFile RAF = FilePort.getRAF(BaseFile, preNum*1002);			//修改上一文件夹记录
+			RAF.write(LastNode.getLinetxt().getBytes());
+			
+			RAF = FilePort.getRAF(BaseFile, NewDirNum*1002);						//修改新文件夹记录
 			RAF.write(NewInfo.getBytes());
 			
 			return true;
@@ -255,10 +264,10 @@ public class DirTree {
 	
 	public boolean DirDelete(long DirNum) {		//删除文件夹
 		try {
-			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1001);
-			byte[] bData = new byte[1001];
+			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1002);
+			byte[] bData = new byte[1002];
 			
-			FIS.read(bData, 0, 1001);
+			FIS.read(bData, 0, 1002);
 			
 			String Line = new String(bData).split("#")[0];
 			TreeNode Node = new TreeNode(Line);
@@ -266,32 +275,52 @@ public class DirTree {
 			long lastNum = Node.getLastNum();
 			long nextNum = Node.getNextNum();
 			
-			FIS = FilePort.getFIS(BaseFile, lastNum*1001);
-			FIS.read(bData, 0, 1001);
+			if(lastNum>0) {
+				FIS = FilePort.getFIS(BaseFile, lastNum*1002);
+				FIS.read(bData, 0, 1002);
 			
-			String LastLine = new String(bData).split("#")[0];		//修改上一记录文件
-			TreeNode LastNode = new TreeNode(LastLine);
+				String LastLine = new String(bData).split("#")[0];		//修改上一记录文件
+				TreeNode LastNode = new TreeNode(LastLine);
+				if(LastNode.getSonNum()==DirNum) {			//判断是同级文件夹还是子文件夹
+					LastNode.setSonNum(nextNum);
+				}
+				else {
+					LastNode.setNextNum(nextNum);
+				}			//前后两节点相连
+				
+				RandomAccessFile RAF = FilePort.getRAF(BaseFile, lastNum*1002);		//修改后文本写入
+				RAF.write(LastNode.getLinetxt().getBytes());
+				
+			}
+			if(nextNum>0) {
+				FIS = FilePort.getFIS(BaseFile, nextNum*1002);
+				FIS.read(bData,0,1002);
 			
-			FIS = FilePort.getFIS(BaseFile, nextNum*1001);
-			FIS.read(bData,0,1001);
+				String NextLine = new String(bData).split("#")[0];
+				TreeNode NextNode = new TreeNode(NextLine);
+				
+				NextNode.setLastNum(lastNum);
+				
+				RandomAccessFile RAF = FilePort.getRAF(BaseFile, nextNum*1002);
+				RAF.write(NextNode.getLinetxt().getBytes());
+		
+			}
 			
-			String NextLine = new String(bData).split("#")[0];
-			TreeNode NextNode = new TreeNode(NextLine);
-			
-			LastNode.setNextNum(nextNum);			//前后两节点相连
-			NextNode.setLastNum(lastNum);
-			
-			RandomAccessFile RAF = FilePort.getRAF(BaseFile, lastNum*1001);		//修改后文本写入
-			RAF.write(LastNode.getLinetxt().getBytes());
-			
-			RAF = FilePort.getRAF(BaseFile, nextNum*1001);
-			RAF.write(NextNode.getLinetxt().getBytes());
-			
-			DBS(Node);
-			
-			RAF = FilePort.getRAF(BaseFile, DirNum*1001);
+			Node.deleteMark();
+			RandomAccessFile RAF = FilePort.getRAF(BaseFile, DirNum*1002);
 			RAF.write(Node.getLinetxt().getBytes());
 			
+			if(Node.getSonNum()>0) {
+				DirNum = Node.getSonNum();
+				FIS = FilePort.getFIS(BaseFile, Node.getSonNum()*1002);
+				FIS.read(bData, 0, 1002);
+				Node = new TreeNode(new String(bData).split("#")[0]);
+				
+				DBS(Node);
+			
+				RAF = FilePort.getRAF(BaseFile, DirNum*1002);
+				RAF.write(Node.getLinetxt().getBytes());
+			}
 			return true;
 		}catch(Exception e) {
 			e.printStackTrace();
@@ -308,14 +337,14 @@ public class DirTree {
 			
 			else {
 				try {
-					FileInputStream FIS = FilePort.getFIS(BaseFile, Node.getSonNum()*1001);
-					byte[] bData = new byte[1001];
+					FileInputStream FIS = FilePort.getFIS(BaseFile, Node.getSonNum()*1002);
+					byte[] bData = new byte[1002];
 					FIS.read(bData, 0, bData.length);
 					TreeNode Son = new TreeNode(new String(bData).split("#")[0]);
 					
 					DBS(Son);
 					
-					RandomAccessFile RAF = FilePort.getRAF(BaseFile, Node.getSonNum()*1001);
+					RandomAccessFile RAF = FilePort.getRAF(BaseFile, Node.getSonNum()*1002);
 					RAF.write(Son.getLinetxt().getBytes());
 					
 					Node.deleteMark();
@@ -329,14 +358,14 @@ public class DirTree {
 		
 		else {
 			try {
-				FileInputStream FIS = FilePort.getFIS(BaseFile, Node.getNextNum()*1001);
-				byte[] bData = new byte[1001];
+				FileInputStream FIS = FilePort.getFIS(BaseFile, Node.getNextNum()*1002);
+				byte[] bData = new byte[1002];
 				FIS.read(bData, 0, bData.length);
 				TreeNode Next = new TreeNode(new String(bData).split("#")[0]);
 				
 				DBS(Next);
 				
-				RandomAccessFile RAF = FilePort.getRAF(BaseFile, Node.getNextNum()*1001);
+				RandomAccessFile RAF = FilePort.getRAF(BaseFile, Node.getNextNum()*1002);
 				RAF.write(Next.getLinetxt().getBytes());
 				
 				Node.deleteMark();
@@ -350,7 +379,18 @@ public class DirTree {
 	
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
+		DirTree DT = new DirTree();
 		
+		DT.initTree();
+		
+		//System.out.println(DT.DirIn(1));
+		//System.out.println(DT.DirCheck(1));
+		
+		//DT.DirSum = 5;
+		
+		//System.out.println(DT.DirMake(1, "F"));
+		
+		System.out.println(DT.DirDelete(3));
 	}
 
 }
