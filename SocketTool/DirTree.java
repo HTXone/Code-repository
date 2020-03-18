@@ -4,6 +4,94 @@ import java.io.FileNotFoundException;
 import java.io.RandomAccessFile;
 import java.util.Vector;
 
+class TreeNode{
+	private String[] Linetxt = null;
+	
+	private String Infotxt = null;
+	
+	private String DirName = null;
+	private long LastNum = 0;
+	private long NextNum = 0;
+	private long SonNum = 0;
+	
+	private String Filetxt = null;
+	
+	TreeNode(String txt){
+		this.Linetxt = txt.split(";",3);
+		
+		this.Infotxt = Linetxt[0];
+		this.Filetxt = Linetxt[2];
+		
+		String[] S = Linetxt[1].split("@@");
+		
+		DirName = S[0];
+		LastNum = Long.valueOf(S[1]);
+		NextNum = Long.valueOf(S[2]);
+		SonNum = Long.valueOf(S[3]);
+		
+	}
+	
+	public long getSonNum() {
+		return SonNum;
+	}
+	
+	public void setSonNum(long num) {
+		this.SonNum = num;
+	}
+	
+	public long getLastNum() {
+		return LastNum;
+	}
+	
+	public void setLastNum(long num) {
+		this.LastNum = num;
+	}
+	
+	public long getNextNum() {
+		return NextNum;
+	}
+	
+	public void setNextNum(long num) {
+		this.NextNum = num;
+	}
+	
+	public String getDirName() {
+		return DirName;
+	}
+	
+	public void setDirName(String Name) {
+		this.DirName = Name;
+	}
+	
+	public String getInfotxt() {
+		return Infotxt;
+	}
+	
+	public void setinfotxt(String txt) {
+		this.Infotxt = txt;
+	}
+	
+	public String getFiletxt() {
+		return Filetxt;
+	}
+	
+	public void setFiletxt(String txt) {
+		this.Filetxt = txt;
+	}
+	
+	public void deleteMark() {
+		String[] s = this.Infotxt.split("@@");
+		this.Infotxt = "F@@"+s[1];
+	}
+	
+	public String getLinetxt() {
+		String Line = Infotxt+";"+DirName+"@@"+LastNum+"@@"+NextNum+"@@"+SonNum+";"+Filetxt+"#";
+		
+		return Line;
+	}
+	
+}
+
 public class DirTree {
 
 	
@@ -172,21 +260,90 @@ public class DirTree {
 			
 			FIS.read(bData, 0, 1001);
 			
-			String[] Line = new String(bData).split("#")[0].split(";",3);
+			String Line = new String(bData).split("#")[0];
+			TreeNode Node = new TreeNode(Line);
 			
-			String[] Line2 = Line[1].split("@@");
-			
-			long lastNum = Long.valueOf(Line2[1]);
-			long nextNum = Long.valueOf(Line2[2]);
+			long lastNum = Node.getLastNum();
+			long nextNum = Node.getNextNum();
 			
 			FIS = FilePort.getFIS(BaseFile, lastNum*1001);
 			FIS.read(bData, 0, 1001);
 			
-			String[] LastLine = new String(bData).split("#")[0].split(";",3);		//修改上一
-			String[] LastLine2 = LastLine[1].split("@@");
-			LastLine2[2] = Line2[2];
-			String LastLineInfo = LastLine[0]+";"+LastLine2[0]+"@@"+LastLine2[1]+"@@"+LastLine2[2]+"@@"+LastLine2[3]+";"+LastLine[2];
+			String LastLine = new String(bData).split("#")[0];		//修改上一记录文件
+			TreeNode LastNode = new TreeNode(LastLine);
 			
+			FIS = FilePort.getFIS(BaseFile, nextNum*1001);
+			FIS.read(bData,0,1001);
+			
+			String NextLine = new String(bData).split("#")[0];
+			TreeNode NextNode = new TreeNode(NextLine);
+			
+			LastNode.setNextNum(nextNum);			//前后两节点相连
+			NextNode.setLastNum(lastNum);
+			
+			RandomAccessFile RAF = FilePort.getRAF(BaseFile, lastNum*1001);		//修改后文本写入
+			RAF.write(LastNode.getLinetxt().getBytes());
+			
+			RAF = FilePort.getRAF(BaseFile, nextNum*1001);
+			RAF.write(NextNode.getLinetxt().getBytes());
+			
+			DBS(Node);
+			
+			RAF = FilePort.getRAF(BaseFile, DirNum*1001);
+			RAF.write(Node.getLinetxt().getBytes());
+			
+			return true;
+		}catch(Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	private void DBS(TreeNode Node) {			//返回后修改导入
+		if(Node.getNextNum() == 0) {
+			if(Node.getSonNum() == 0) {
+				Node.deleteMark();
+				return ;
+			}
+			
+			else {
+				try {
+					FileInputStream FIS = FilePort.getFIS(BaseFile, Node.getSonNum()*1001);
+					byte[] bData = new byte[1001];
+					FIS.read(bData, 0, bData.length);
+					TreeNode Son = new TreeNode(new String(bData).split("#")[0]);
+					
+					DBS(Son);
+					
+					RandomAccessFile RAF = FilePort.getRAF(BaseFile, Node.getSonNum()*1001);
+					RAF.write(Son.getLinetxt().getBytes());
+					
+					Node.deleteMark();
+					return ;
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+			}
+			
+		}
+		
+		else {
+			try {
+				FileInputStream FIS = FilePort.getFIS(BaseFile, Node.getNextNum()*1001);
+				byte[] bData = new byte[1001];
+				FIS.read(bData, 0, bData.length);
+				TreeNode Next = new TreeNode(new String(bData).split("#")[0]);
+				
+				DBS(Next);
+				
+				RandomAccessFile RAF = FilePort.getRAF(BaseFile, Node.getNextNum()*1001);
+				RAF.write(Next.getLinetxt().getBytes());
+				
+				Node.deleteMark();
+				return ;
+			}catch(Exception e) {
+				e.printStackTrace();
+			}
 			
 		}
 	}
