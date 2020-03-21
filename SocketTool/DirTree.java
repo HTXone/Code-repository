@@ -1,10 +1,13 @@
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Vector;
+
+
 
 class TreeNode{
 	private String[] Linetxt = null;
@@ -103,19 +106,23 @@ class DirInfoObject {
 	private long Size = -1;			//未做统计为-1
 	private long numbers = -1;		
 	
+	public boolean IsUsing = true;
 	private String Infotxt = null;
 	
-	DirInfoObject(String Infotxt){		//格式：DirChangeTime(YYYY/MM/DD HH/MM/SS)@@Expand(T/F)@@ExpandNum@@Size@@numbers
+	DirInfoObject(String Infotxt){		//格式：Using(T/F)@@DirChangeTime(YYYY/MM/DD HH/MM/SS)@@Expand(T/F)@@ExpandNum@@Size@@numbers
 		String[] S = Infotxt.split("@@");
-		DirChangeTime = S[0];
-		if(S[1].equals(true)) {
+		if(S[0].equals("F")) this.IsUsing = false;
+		else this.IsUsing = true;
+		DirChangeTime = S[1];
+		if(S[2].equals("T")) {
 			Expand = true;
-			ExpandNum = Long.valueOf(S[2]);
+			ExpandNum = Long.valueOf(S[3]);
 		}
 		else Expand = false;
 		
-		Size = Long.valueOf(S[3]);
-		numbers = Long.valueOf(S[4]);
+		Size = Long.valueOf(S[4]);
+		numbers = Long.valueOf(S[5]);
+		System.out.println(this.numbers);
 	}
 	
 	public String getDirChangeTime() {
@@ -160,6 +167,10 @@ class DirInfoObject {
 		this.numbers = num;
 	}
 	
+	public void setIsUsing(boolean F) {
+		this.IsUsing = F;
+	}
+	
 	public void numAdd() {
 		this.numbers++;
 	}
@@ -169,7 +180,12 @@ class DirInfoObject {
 	}
 	
 	public String getInfoTxt() {
-		String Infotxt = this.DirChangeTime+"@@";
+		
+		String Infotxt = "";
+		
+		Infotxt = this.IsUsing?"T@@":"F@@";
+		
+		Infotxt = Infotxt+this.DirChangeTime+"@@";
 		if(Expand) {
 			Infotxt = Infotxt+"T@@"+this.ExpandNum+"@@";
 		}
@@ -190,7 +206,7 @@ public class DirTree {
 	
 	private String[] SumTree = null;
 	
-	private static final long Sum = 10000;
+	private static final long Sum = 10;
 	
 	private File BaseFile = null;
 	
@@ -200,12 +216,33 @@ public class DirTree {
 	
 	private String MainInfo = null;
 	
-	public String initTree() {				//返回较上次登入后的修改记录
+	public void BulidTree(String FileName) {
+		try {
+			RandomAccessFile RAF = new RandomAccessFile(new File(FileName), "rw");
+			for(int i = 0;i<Sum;i++) {
+				for(int j=0;j<1000;j++) {
+					RAF.write(" ".getBytes());
+				}
+				RAF.write("#\n".getBytes());
+			}
+			RAF.write("1@@\n".getBytes());
+			
+			RAF = FilePort.getRAF(new File(FileName), 0);
+			RAF.write("T@@2000/01/01 00/00/00@@F@@-1@@-1@@0;ROOT@@0@@0@@0;;#".getBytes());
+			
+		}catch(IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public String initTree(String FileName) {				//返回较上次登入后的修改记录
 		SumTree = new String[10000];
 		
-		BaseFile = new File("Tree.txt");
+		BaseFile = new File(FileName);
 		
 		History = new Vector<Long>();
+		//History.add((long)0);
+		
 		try {
 			RandomAccessFile RAF = FilePort.getRAF(BaseFile, Sum*1002);
 			MainInfo = RAF.readLine();
@@ -224,13 +261,13 @@ public class DirTree {
 	}
 	
 	public long getNum(long sum) {				//哈希函数 从空余列中获取值
-		long num = (sum+1)%997;
+		long num = (sum)%997;
 		
 		try {
 			
-			File file = new File("SumTree.txt");
+			//File file = new File(FileName);
 			
-			FileInputStream FIS = FilePort.getFIS(file, num*1002);		//跳至指定行观察是否为空闲行
+			FileInputStream FIS = FilePort.getFIS(BaseFile, num*1002);		//跳至指定行观察是否为空闲行
 			
 			byte bData[] = new byte[1];
 			FIS.read(bData,0,1);
@@ -238,14 +275,19 @@ public class DirTree {
 			int i = 1;
 			
 			while(new String(bData).equals("T")) {				//当为占用行时发生冲突 启动冲突处理函数
+				
+				System.out.println(new String(bData));	
+				
 				num+=i*i;
 				i++;
 				num = num%1000;
-				FIS = FilePort.getFIS(file, num*1002);
+				FIS = FilePort.getFIS(BaseFile, num*1002);
 				
 				FIS.read(bData,0,1);
 				
 			}
+			
+			System.out.println(new String(bData));
 		
 			return num;						//无冲突 直接返回可用行
 		
@@ -257,9 +299,8 @@ public class DirTree {
 
 	}
 
-	public String DirIn(long DirNum) {						//进入文件夹 返回文件夹信息 格式：DirInfo;FileName;FileName;FileName;DirName@@DirNum;DirName@@DirNum;
+	public String DirCheck(long DirNum) {						//进入文件夹 返回文件夹信息 格式：DirInfo;FileName;FileName;FileName;DirName@@DirNum;DirName@@DirNum;
 		
-		History.add(DirNum);				//将此文件夹路径存入记录数组
 		
 		try {
 			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1002);		//跳转至指定记录行
@@ -300,16 +341,13 @@ public class DirTree {
 		
 	}
 	
-	public String DirCheck(long DirNum) {		//检查文件夹 只返回文件夹相关信息
+	public String DirIn(long DirNum) {		//检查文件夹 只返回文件夹相关信息
 		try {
-			FileInputStream FIS = FilePort.getFIS(BaseFile, DirNum*1002);
+		
+			History.add(DirNum);				//将此文件夹路径存入记录数组
 			
-			byte[] bData = new byte[1002];
-			FIS.read(bData, 0, bData.length);
+			return this.DirCheck(DirNum);
 			
-			String Info = (((new String(bData).split("#")[0]).split(";")[0]).split("@@")[1]);
-			
-			return Info;
 		}
 		catch(Exception e) {
 			e.printStackTrace();
@@ -352,7 +390,10 @@ public class DirTree {
 			}
 			//LastLine = Args[0]+Args2[0]+Args2[1]+NewDirNum+Args2[3]+Args[2];		//前一文件夹记录变动
 			
-			String NewInfo = "T@@Info;"+NewName+"@@"+preNum+"@@0@@0;;#";
+			DirInfoObject DIO = new DirInfoObject("T@@2000/01/01 00/00/00@@F@@-1@@-1@@0");
+			DIO.setDirChangeTime();
+			
+			String NewInfo = DIO.getInfoTxt()+";"+NewName+"@@"+preNum+"@@0@@0;;#";
 			
 			
 			RandomAccessFile RAF = FilePort.getRAF(BaseFile, preNum*1002);			//修改上一文件夹记录
@@ -390,12 +431,13 @@ public class DirTree {
 			if(i == History.size()-1) {
 				DirInfoObject DIO = new DirInfoObject(HNode.getInfotxt());
 				DIO.setDirChangeTime();
+				DIO.numAdd();
 				HNode.setinfotxt(DIO.getInfoTxt());
 				DirNum = History.get(i);
 			}
 		}
 		//修改记录
-		this.MainInfo = this.MainInfo+"D "+path+NewName+";";
+		this.MainInfo = this.MainInfo+"A "+path+NewName+";";
 		}catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -435,7 +477,7 @@ public class DirTree {
 			//修改记录
 			this.MainInfo = this.MainInfo+"D "+path+Node.getDirName()+";";
 			
-			if(lastNum>0) {
+			if(!(lastNum<0)) {
 				FIS = FilePort.getFIS(BaseFile, lastNum*1002);
 				FIS.read(bData, 0, 1002);
 			
@@ -582,6 +624,11 @@ public class DirTree {
 					DIO.numAdd();
 					DIO.setDirChangeTime();
 					Node.setinfotxt(DIO.getInfoTxt());
+					Node.setFiletxt(Node.getFiletxt()+FileName+";");
+					
+					RandomAccessFile RAF = FilePort.getRAF(BaseFile, History.get(i)*1002);
+					RAF.write(Node.getLinetxt().getBytes());
+					
 				}
 			}
 			
@@ -612,6 +659,7 @@ public class DirTree {
 					DIO.numSub();;
 					DIO.setDirChangeTime();
 					Node.setinfotxt(DIO.getInfoTxt());
+					this.DirSum--;
 				}
 			}
 			this.MainInfo = this.MainInfo+"D "+path+FileName+";";
@@ -627,10 +675,12 @@ public class DirTree {
 			return null;								
 		}
 		
-		long FatherNum = History.get(History.size()-1);		//记录路径数组中删除
+		long FatherNum = History.get(History.size()-2);		//记录路径数组中删除
 		History.remove(History.size()-1);
 		
-		return this.DirIn(FatherNum);
+		System.out.println(FatherNum);
+		
+		return this.DirCheck(FatherNum);
 		
 	}
 
@@ -649,7 +699,36 @@ public class DirTree {
 		// TODO Auto-generated method stub
 		DirTree DT = new DirTree();
 		
-		DT.initTree();
+		//DT.BulidTree("Treetest2.txt");
+		
+		System.out.println(DT.initTree("Treetest2.txt")+"Sum: "+DT.DirSum);
+		System.out.println(DT.DirIn(0));
+		
+		System.out.println(DT.DirIn(2));
+		
+		//DT.FileAdd("FileA");
+		
+		//System.out.println(DT.DirIn(6));
+		
+		//System.out.println(DT.DirBack());
+		
+		//System.out.println(DT.History.size());
+		
+		//System.out.println(DT.DirBack());
+		
+		//DT.FileAdd("FileB");
+		
+		//DT.DirDelete(1);
+		
+		//System.out.println(DT.getNum(4));
+		
+		DT.DirMake("DirD");
+		
+		//DT.DirMake("DirB");
+		
+		System.out.println(DT.DirCheck(2));
+		
+		DT.Close();
 		
 		//System.out.println(DT.DirIn(1));
 		//System.out.println(DT.DirCheck(1));
