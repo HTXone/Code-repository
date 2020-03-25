@@ -89,28 +89,28 @@ String[] getLastUpdate();
 String DirFlush();
 
 //获取一个指定文件夹的文件夹信息类 
-DirInfoObject DirCheck(long DirNum0);
+DirInfoObject DirCheck(long DirNum);
 
 //获取一个指定文件的文件信息类
 FileInfo FileCheck(long FileNum);
 
 //文件夹重命名
-boolean DirRename(long DirNum,String NewName);
+boolean DirRename(String OldName,long DirNum,String NewName);
 
 //在当前目录下新建文件夹
 boolean DirMake(String DirName);
 
 //文件夹删除
-boolean DirDelete(long Dirnum);
+boolean DirDelete(long Dirnum,String DirName);
 
 //文件删除 
-boolean FileDelete(long Filenum);
+boolean FileDelete(String FileName);
 
 //文件重命名
-boolean FileRename(long Filenum,String NewName);
+boolean FileRename(long Filenum,String NewName,String OldName);
 
 //文件夹退回	返回父文件夹 到达根时将重复返回根 返回格式与DirIn相同
-String DirBack();
+String Back();
 
 //获取当前与根的相对路径
 String getPath();
@@ -120,7 +120,7 @@ String getPath();
 //FileName:要传输文件名
 //LimitSpeed:限制速度 -1为不限速
 //CB:传输完成后的返回函数
-boolean FileTranslate(String mode,String FileName,long LimitSpeed,CallBack CB);
+boolean FileTranslate(String mode,String LocalPath,String FileName,long LimitSpeed,CallBack CB);
 
 //返回当前正在进行的传输的速度信息类
 splitSpeedWatch SpeedWatch();

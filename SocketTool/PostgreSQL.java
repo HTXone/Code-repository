@@ -90,7 +90,7 @@ public class PostgreSQL{
 	public void CreatNewTable(String NewTableName,String Keys) {
 		if(connect == null) {System.out.println("Connect error!");return ;}
 		
-		String Sql = "CREATE TABLE "+NewTableName+" ("+Keys+"); ";
+		String Sql = "CREATE TABLE "+NewTableName+" ("+Keys+"); ALTER TABLE "+NewTableName+" OWNER TO postgres;";
 		this.SQLUpdataGeneral(Sql);	
 		
 	}
@@ -137,26 +137,37 @@ public class PostgreSQL{
 		return this.SQLUpdataGeneral(Sql);
 	}
 	
-	public static void main(String[] args) {
-		PostgreSQL PSQL = new PostgreSQL();
-		
-		ResultSet result = PSQL.Search("TEST", "NAME,INSCHOOL", "WHERE AGE = 18");
-		
+	public void Close() {
 		try {
-			while(result.next()) {
-				System.out.println("NAME: "+result.getString("NAME")+"INSCHOOL: "+result.getBoolean("INSCHOOL"));
-			}
-			PSQL.StatementClose();
+			this.connect.close();
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+	
+	public static void main(String[] args) {
+		PostgreSQL PSQL = new PostgreSQL();
 		
-		PSQL.Insert("TEST", "(ID,NAME,AGE,INSCHOOL) VALUES (5,'E',19,TRUE)");
+		//PSQL.CreatNewTable("TestUser", "FileName text NOT NULL,Filelength text,FileGetTime text,FileDES text,FileIsUsing boolean");
+		
+		//ResultSet result = PSQL.Search("TEST", "NAME,INSCHOOL", "WHERE AGE = 18");
+		
+		//try {
+		//	while(result.next()) {
+		//		System.out.println("NAME: "+result.getString("NAME")+"INSCHOOL: "+result.getBoolean("INSCHOOL"));
+		//	}
+		//	PSQL.StatementClose();
+		//} catch (SQLException e) {
+			// TODO Auto-generated catch block
+		//	e.printStackTrace();
+		//}
+		
+		//PSQL.Insert("TEST", "(ID,NAME,AGE,INSCHOOL) VALUES (5,'E',19,TRUE)");
 		
 		//PSQL.Delete("TEST", "WHERE NAME = 'B'");
 		
-		PSQL.Update("TEST", "SET INSCHOOL = TRUE WHERE NAME = 'D'");
+		//PSQL.Update("TEST", "SET INSCHOOL = TRUE WHERE NAME = 'D'");
 		
 	}
 }

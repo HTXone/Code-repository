@@ -18,6 +18,8 @@ import java.lang.*;
 class splitSpeedWatch implements Runnable{						//配合SpeedWatch一起使用 用于显示速度
 	private ArrayList<SpeedWatch> SpeedList = null;
 	
+	public long speed = 0;										//直接调用
+	
 	public splitSpeedWatch() {
 		// TODO Auto-generated constructor stub
 		SpeedList = new ArrayList<SpeedWatch>();
@@ -34,7 +36,7 @@ class splitSpeedWatch implements Runnable{						//配合SpeedWatch一起使用 �
 			TimeUnit.MILLISECONDS.sleep(100);
 			while(SpeedList!=null&&SpeedList.get(0).Nclose) {
 				TimeUnit.SECONDS.sleep(1);
-				long speed = 0;
+				speed = 0;
 				for(int i = 0;i<SpeedList.size();i++) {
 					speed+=SpeedList.get(i).Speed();
 				}
@@ -112,6 +114,8 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 	
 	private String mode = null;
 	
+	private boolean IsPasue = false;
+	
 	ClientFileTranslate(Socket client,InputStream INS,OPSW OPS,String RC4PassWord,CallBack CB,long LimitSpeed,String mode) {		//初始化
 		// TODO Auto-generated constructor stub
 		this.client = client;
@@ -124,7 +128,16 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 		this.limit = true;
 		this.LimitSpeed = LimitSpeed;
 		this.mode = mode;
+		
 		SW = new SpeedWatch(this);		//新建监视器
+	}
+	
+	public synchronized void Pause() {
+		this.IsPasue = true;
+	}
+	
+	public synchronized void Action() {
+		this.IsPasue = false;
 	}
 	
 	@Override
@@ -143,7 +156,7 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 		if(OPS.OS!=null) {				//文件输出限速
 			while(SW.Nclose) {
 				if(LimitSpeed<0||limit) {				//检测是否限速
-					while(limit&&(length = INS.read(bData, 0, bData.length))!=-1) {
+					while(!IsPasue&&limit&&(length = INS.read(bData, 0, bData.length))!=-1) {
 						//System.out.println(length);
 						index++;
 						Sindex++;
@@ -227,7 +240,7 @@ class MergeFileCallBack implements CallBack{				//分段文件接收后整合类
 		
 }
 
-class MFFileCallBack implements CallBack{
+class MFFileCallBack implements CallBack{ 				//合并后解压
 	private String FileName = null;
 	private int FileNum = 0;
 	private CallBack CB = null;
@@ -256,6 +269,25 @@ class MFFileCallBack implements CallBack{
 	
 }
 
+class SFSumCallBack implements CallBack{
+
+	private SFClientCallBack SFCCB;
+	
+	SFSumCallBack(SFClientCallBack SFCCB){
+		this.SFCCB = SFCCB;
+	}
+	
+	@Override
+	public void callback() {
+		// TODO Auto-generated method stub
+		
+		SFCCB.Sum();
+		return ;
+	}
+	
+	
+}
+
 class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 	private FileSplit FS = null;
 	private String hostName;
@@ -271,7 +303,12 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 	
 	private String DESPassWord = null;
 	
-	SFClientCallBack(FileSplit FS,String hostName,int port, String mood,String NewFileName,String LSpeed,String SFileName,ArrayList<SocketClient>ClientList,ArrayList<Thread>ThreadList,String DESPassWord){
+	private Vector<ClientFileTranslate> TranslateList = null;
+	private CallBack callBack = null;
+	
+	private int tempnum = 0;
+	
+	SFClientCallBack(FileSplit FS,String hostName,int port, String mood,String NewFileName,String LSpeed,String SFileName,ArrayList<SocketClient>ClientList,ArrayList<Thread>ThreadList,String DESPassWord,Vector<ClientFileTranslate> TranslateList,CallBack callBack){
 		this.FS = FS;
 		this.hostName = hostName;
 		this.HTTPS_PORT = port;
@@ -284,6 +321,11 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 		
 		this.DESPassWord = DESPassWord;
 		
+		this.TranslateList = TranslateList;
+		
+		this.callBack = callBack;
+		
+		
 		LimitSpeed = Long.parseLong(LSpeed);
 		try {
 		FS.splitBySize(NewFileName, 1024*60,SFClientCallBack.this);
@@ -291,6 +333,14 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 		FS.splitStart();
 		}catch (Exception e) {}
 		
+	}
+	
+	public void Sum() {
+		this.tempnum++;
+		
+		if(this.tempnum == num) {
+			this.callBack.callback();
+		}
 	}
 	
 	@Override
@@ -318,8 +368,9 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 		if(LimitSpeed>0) {
 			for(int i = 0;i<FS.num;i++) {													//开启多个传输客户端嵌套字
 				System.out.println("Split send start");
-		
-				SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part",this.DESPassWord);
+				
+				SFSumCallBack SFCB = new SFSumCallBack(this);
+				SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part",this.DESPassWord,SFCB);
 				
 				System.out.println(i+"begin");
 				
@@ -344,8 +395,9 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 			splitSpeedWatch SSW = new splitSpeedWatch();
 		for(int i = 0;i<FS.num;i++) {													//开启多个传输客户端嵌套字
 			System.out.println("Split send start");
-	
-			SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part",this.DESPassWord);
+			
+			SFSumCallBack SFCB = new SFSumCallBack(this);
+			SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part",this.DESPassWord,SFCB);
 			
 			System.out.println(i+"begin");
 			
@@ -381,6 +433,8 @@ class SplitFileSendCallBack implements CallBack{
 	int SFnum = 0;
 	int index = 0;
 	
+	private CallBack callBack = null;
+	
 	public SplitFileSendCallBack(int num) {
 		// TODO Auto-generated constructor stub
 		this.SFnum = num;
@@ -410,6 +464,8 @@ public class SocketClient implements CallBack{		//增加回调接口
 	private String SSLPWD = "123456789";
 	private String SSLKeyPath = "SSLKey";
 	
+	private Vector<ClientFileTranslate> TranslateList = null;
+	
 	InputStream INS = null;											//传输流
 	OPSW OPS = null;
 	String mood = null;
@@ -417,7 +473,9 @@ public class SocketClient implements CallBack{		//增加回调接口
 	String FileName = null;
 	String SFileName = null;
 	
-	public SocketClient(String hostName,int port,String mood,String FileName,String LSpeed,String SFileName,String DESPassWord) throws Exception {				
+	private CallBack callBack = null;
+	
+	public SocketClient(String hostName,int port,String mood,String FileName,String LSpeed,String SFileName,String DESPassWord,CallBack callBack) throws Exception {				
 		//SSLContext context  = SSLContext.getInstance("SSL");			//SSL环境初始化
 		
 		this.HTTPS_PORT  = port;
@@ -428,16 +486,12 @@ public class SocketClient implements CallBack{		//增加回调接口
 		this.SFileName = SFileName;
 		this.DESPassWord = DESPassWord;
 		this.OPS = new OPSW(null, null);
+		this.callBack = callBack;
 		
-		//服务器无法加载SSL证书 废弃
-		//KeyStore trustKS = KeyStore.getInstance("JKS");					//密匙仓库
-	//	trustKS.load(new FileInputStream("SSLKey"),"123456789".toCharArray());	//保存服务器授权证书
-		//TrustManagerFactory kmf = TrustManagerFactory.getInstance("Sunx509");	//加载信任证书仓库
-		//kmf.init(trustKS);														//初始化
-		//context.init(null, kmf.getTrustManagers(), null);						//环境初始化
 		
-		//factory = context.getSocketFactory();									//获取工厂
 		client = new Socket(hostName,port);			//得到套接字
+		
+		TranslateList = new Vector<ClientFileTranslate>();
 		
 		DataOutputStream DOS = new DataOutputStream(client.getOutputStream());		//向服务器发送传输命令
 		DOS.writeUTF(mood+"#"+FileName+"#"+LSpeed+"#"+SFileName+"#"+DESPassWord);
@@ -457,6 +511,18 @@ public class SocketClient implements CallBack{		//增加回调接口
 	
 	public InputStream getClientInputStream()	throws IOException{			//嵌套字输入流
 		return client==null?null:client.getInputStream();
+	}
+	
+	public void Pause() {
+		for(int i = 0;i<this.TranslateList.size();i++) {
+			TranslateList.get(i).Pause();
+		}
+	}
+	
+	public void Active() {
+		for(int i = 0;i<this.TranslateList.size();i++) {
+			TranslateList.get(i).Action();
+		}
 	}
 	
 	public void ClientFirstStart(String mood,String FileName,String LSpeed,String SFileName) {	//mood:读/写 FileName：操作文件名 LSpeed：限制速度	 在接收请求后执行 SFileName 目的文件名
@@ -482,6 +548,9 @@ public class SocketClient implements CallBack{		//增加回调接口
 						OPS.OS = IOStream.BufferedOut(IOStream.Dataout(client.getOutputStream()));
 						
 						ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this,LS,"Send");			//创建传输线程
+						
+						this.TranslateList.add(CFT);
+						
 						Thread thread = new Thread(CFT);
 						splitSpeedWatch SSW = new splitSpeedWatch();
 						SSW.addSpeedWatch(CFT.SW);
@@ -499,6 +568,9 @@ public class SocketClient implements CallBack{		//增加回调接口
 					OPS.OS = IOStream.BufferedOut(IOStream.GZipout(IOStream.Dataout(client.getOutputStream())));
 					
 					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this,LS,"Send");			//创建传输线程
+					
+					this.TranslateList.add(CFT);
+					
 					Thread thread = new Thread(CFT);
 					splitSpeedWatch SSW = new splitSpeedWatch();
 					SSW.addSpeedWatch(CFT.SW);
@@ -506,7 +578,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					thread.start();
 					threadSW.start();
 				};break;
-				case 3 : {					//大于1G的文件分段压缩传输
+				case 3 : {					//大于1G的文件分段压缩传输（要修改）
 					client.close();		//关闭当前嵌套字
 					System.out.println("ZS in here");
 					String NewFileName = FileName+".gz";
@@ -524,7 +596,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					FileSplit FS = new FileSplit();
 					System.out.println("spliting");
 					//启用带回调函数的类实例进行传输
-					SFClientCallBack SFCCB = new SFClientCallBack(FS, this.hostName, this.HTTPS_PORT, this.mood, NewFileName, this.LSpeed, SFileName, ClientList, ThreadList,this.DESPassWord);
+					SFClientCallBack SFCCB = new SFClientCallBack(FS, this.hostName, this.HTTPS_PORT, this.mood, NewFileName, this.LSpeed, SFileName, ClientList, ThreadList,this.DESPassWord,this.TranslateList,this);
 					
 				};break;
 				default : break;
@@ -561,7 +633,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					for(int i = 0;i<fileLength;i++) {
 						String NewFileName  = this.FileName+".gz_"+(int)(i+1)+".part";			//分段文件各文件名 待修改
 						System.out.println("Split file read start");
-						SocketClient SSC = new SocketClient(hostName, HTTPS_PORT,this.mood,NewFileName,this.LSpeed,this.SFileName+".gz_"+(i+1)+".part",this.DESPassWord);
+						SocketClient SSC = new SocketClient(hostName, HTTPS_PORT,this.mood,NewFileName,this.LSpeed,this.SFileName+".gz_"+(i+1)+".part",this.DESPassWord,this.callBack);
 						
 						DataInputStream SDOS = new DataInputStream(SSC.client.getInputStream());
 						String SplitFileName = SDOS.readUTF();
@@ -597,6 +669,8 @@ public class SocketClient implements CallBack{		//增加回调接口
 					
 					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, this.RC4PassWord,SocketClient.this,-1,"Read");
 					
+					this.TranslateList.add(CFT);
+					
 					SSW.addSpeedWatch(CFT.SW);
 					
 					threadSW.start();
@@ -618,7 +692,6 @@ public class SocketClient implements CallBack{		//增加回调接口
 						
 					//	File file = new File(SocketFileName+"a");
 						//file.delete();
-				
 					}
 					}
 				};break;
@@ -641,8 +714,6 @@ public class SocketClient implements CallBack{		//增加回调接口
 			DOS.writeLong(file.length());
 			
 			long fileLength = DIS.readLong();
-			
-		
 			
 			FileInputStream FIS = FilePort.getFIS(file, fileLength);		//文件传输位置定位
 			
@@ -746,7 +817,10 @@ public class SocketClient implements CallBack{		//增加回调接口
 	
 	public static void main(String[] args) {
 		try {
-			SocketClient Client = new SocketClient("localhost",4000,args[0],args[1],args[2],args[3],args[4]);			//命令行格式  Read/Send 本地文件 限速 目的文件
+			
+			CAB c = new CAB();
+			
+			SocketClient Client = new SocketClient("localhost",4000,args[0],args[1],args[2],args[3],args[4],c);			//命令行格式  Read/Send 本地文件 限速 目的文件
 			Client.ClientFirstStart(args[0], args[1], args[2],args[3]);
 			//Client.FileTranslate(new FileInputStream("./in.bin"), new BufferedOutputStream(Client.getClientOutputStream())); 
 		}catch(Exception ie) {}
@@ -758,6 +832,18 @@ public class SocketClient implements CallBack{		//增加回调接口
 	public void callback() {
 		// TODO Auto-generated method stub
 		System.out.println("file translate over");
+		
+		this.callBack.callback();
 	}	
+	
+}
+
+class CAB implements CallBack{
+
+	@Override
+	public void callback() {
+		// TODO Auto-generated method stub
+		System.out.println("Over");
+	}
 	
 }

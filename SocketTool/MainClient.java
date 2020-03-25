@@ -26,7 +26,19 @@ class Contorl implements Runnable{
 			String CMD = input.next();
 			switch(CMD) {
 			case "Login" : {System.out.println("Please input UserName and PWD");MC.Login(input.next(), input.next());}break;
+			
+			//case "FileShow" : {MC.FileShow();};break;
+			
+			case "Logon" : {
+				System.out.println();
+			};break;
+			
+			//case "FileDelete" : {System.out.println("Please input the FileName you want to delete");MC.FileDelete(input.next());};break;
+			
+			//case "FileTranslate" : {System.out.println("please input the mode the FileName theLimitSpeed");MC.FileTranslate(input.next(), input.next(), Long.valueOf(input.next()));};break;
+			
 			case "Close" : MC.Close();this.IsClose = true;break;
+			
 			default : break;
 			}
 		}
@@ -86,8 +98,44 @@ public class MainClient {
 		this("localhost",4001);
 	}
 	
+	public void LongStringSend(String txt) throws IOException, Exception {
+		
+			int begin = 0;
+			//char[] Data = txt.toCharArray();
+			int size = txt.length();
+			while(size-begin>53) {
+				DOS.writeUTF(RSA.encryptByPrivateKey(txt.substring(begin, begin+53), RSAPrivateKey));
+				
+				begin+=53;
+			}
+			DOS.writeUTF(RSA.encryptByPrivateKey(txt.substring(begin), RSAPrivateKey));
+			
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+		
+	}
+	
+	public String LongStringGet() throws IOException, Exception {
+			String CMD = new String();
+			String txt = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+			while(!txt.equals("Over")) {
+				CMD = CMD+txt;
+				txt = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+			}
+			
+			return CMD;
+	}
+	
 	public void Close() {
 		try {
+			if(DOS!=null) {
+				try {
+					DOS.writeUTF(RSA.encryptByPrivateKey("Close:", RSAPrivateKey));
+					DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+			}
+			
 			this.client.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -95,11 +143,13 @@ public class MainClient {
 		}
 	}
 	
-	//登陆
-	public void Login(String UserName,String PWD) {
+	//登录
+	public String Login(String UserName,String PWD) {			//返回登入信息
 		try {
 			
 			DOS.writeUTF(RSA.encryptByPrivateKey("login:"+UserName+":"+PWD, RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
 			String CMD = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
 			
 			String[] CMDS = CMD.split(":");
@@ -117,8 +167,14 @@ public class MainClient {
 					System.out.println("Path: "+Path+" DES: "+DESKey);
 					
 					this.UserName = UserName;
+					
+					return "T";
 				}
 				else {
+					switch(CMDS[2]) {
+					case "1" : return "F:1-ErrorUserName";
+					case "2" : return "F:2-ErrorPWD";
+					}
 					System.out.println("Login Fail");
 				}
 			}else {
@@ -133,68 +189,272 @@ public class MainClient {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		return "F:404-LinkLose";
 	}
 	
+	public String Logon(String UserName,String PWD) {				//返回一个字符串 格式T/F:Failreason
+		try {
+			
+			DOS.writeUTF(RSA.encryptByPrivateKey("logon:"+UserName+":"+PWD, RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			String CMD = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+			
+			String[] CMDS = CMD.split(":");
+			if(CMDS[0].equals("Logon")) {
+				if(CMDS[1].equals("True")) {
+					return "T";
+				}
+				else {
+					switch(CMDS[2]) {
+					case "1" : return "F:1-UserName exits";
+					case "2" : return "F:2-Error form of UserName";
+					case "3" : return "F:3-Error form of PWD";
+					}
+				}
+			}
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		return "F:404-LinkLose";
+	}
 	
-	//文件属性展示 返回一个字符串容器 格式：File:FileName FileLength OriginalFileLength FileGetTime
-	public Vector<String> FileShow() {
-		
-		Vector<String> args = new Vector<String>();
+	public String DirIn(long DirNum) {								//返回一个字符串 显示当前进入文件夹信息 格式：DirInfo;FileName-num,FileName-num...;DirName@num
 		
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("FileShow:"+UserName, RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("DirIn:"+DirNum, RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
 			
-			boolean over = true;
-			while(over) {
-				String cmd = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
-				
-				if(cmd.equals("Over")) over = false;
-				
-				else args.add(cmd);
+			String CMD = LongStringGet();
+			
+			return CMD;
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return null;
+		
+	}
+	
+	public String[] getLastUpdate() {							//返回一个字符串数组 为据上次登入退出的总文件夹信息更新
+		try {
+			DOS.writeUTF(RSA.encryptByPrivateKey("LastUpdate:", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			String CMD = LongStringGet();
+			
+			String[] CMDS = CMD.split(":");
+			
+			if(CMDS[0].equals("LastUpdate")) {
+				return CMDS[1].split(";");
 			}
-			return args;
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return null;
+	}
+	
+	public String DirFlush() {										//刷新当前文件夹 返回值与DirIn 相同
+		try {
+			DOS.writeUTF(RSA.encryptByPrivateKey("DirFlush:", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			String CMD = LongStringGet();
+			
+			System.out.println(CMD);
+			
+			return CMD;
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return null;
+		
+	}
+	
+	public DirInfoObject DirCheck(long DirNum) {							//返回一个文件夹信息类
+		try {
+			DOS.writeUTF(RSA.encryptByPrivateKey("DirCheck:"+DirNum, RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			String CMD = LongStringGet();
+			String[] CMDS = CMD.split(":");
+			
+			if(CMDS[0].equals("DirCheck")) {
+				return new DirInfoObject(CMDS[1]);
+			}
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return null;
+		
+	}
+	
+	public FileInfo FileCheck(long FileNum) {						//返回一个文件信息类
+		try {
+			DOS.writeUTF(RSA.encryptByPrivateKey("FileCheck:"+FileNum, RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			String CMD = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+			String[] CMDS = CMD.split(":");
+			
+			if(CMDS[0].equals("FileCheck")) {
+				return new FileInfo(CMDS[1]);
+			}
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return null;
+		
+	}
+	
+	public boolean DirRename(String OldName,long DirNum,String NewName) {							//返回一个bool值确认是否完成（更改）
+		try {
+			String txt ="DirRename:"+OldName+":"+DirNum+":"+NewName;
+			
+			LongStringSend(txt);
+			
+			return DIS.readBoolean();
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return false;
+		
+	}
+	
+	public boolean DirMake(String DirName) {						//在当前目录下新建一个文件夹
+		try {
+			DOS.writeUTF(RSA.encryptByPrivateKey("DirMake:"+DirName, RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			return DIS.readBoolean();
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return false;
+	}
+	
+	public boolean DirDelete(long Dirnum,String DirName) {							//删除指定文件夹(更新)
+		try {
+			DOS.writeUTF(RSA.encryptByPrivateKey("DirDelete:"+Dirnum+":"+DirName, RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			return DIS.readBoolean();
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return false;
+	}
+	
+	public boolean FileDelete(String FileName) {    					//删除指定文件 （更改）
+		try {
+			DOS.writeUTF(RSA.encryptByPrivateKey("FileDelete:"+FileName, RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			return DIS.readBoolean();
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return false;
+	}
+	
+	public boolean FileRename(long Filenum,String NewName,String OldName) {		//指定文件重命名
+		try {
+			String txt = "FileRename:"+Filenum+":"+NewName+":"+OldName;
+			
+			LongStringSend(txt);
+			
+			return DIS.readBoolean();
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return false;
+	}
+	
+	public String getPath() {					//获取当前路径
+		try {
+			DOS.writeUTF(RSA.encryptByPrivateKey("GetPath:", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			String CMD = LongStringGet();
+			
+			String[] CMDS = CMD.split(":");
+			
+			if(CMDS[0].equals("GetPath")) {
+				return CMDS[1];
+			}
+			
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return null;
+	}
+	
+	public String Back() {
+		try {
+			DOS.writeUTF(RSA.encryptByPrivateKey("Back:", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			
+			String CMD = LongStringGet();
+			
+			return CMD;
 		}catch(Exception e) {
 			e.printStackTrace();
 			return null;
 		}
+		
 	}
 	
-	//文件删除
-	public boolean FileDelete(String FileName) {
-		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("FileDelete:"+FileName, RSAPrivateKey));
-			
-			boolean result = DIS.readBoolean();
-			
-			if(result)System.out.println("Delete success");
-			else System.out.println("Delete fail");
-			
-			return result;
-		}catch(Exception e) {
-			e.printStackTrace();
-			return false;
-		}
-	}
+	
 	
 	//文件传输 成功启动返回true 否则返回false
-	public boolean FileTranslate(String mode,String FileName,String toFileName,long LimitedSpeed) {				//读/写 本地文件名 远程文件名 限速
+	public boolean FileTranslate(String mode,String LocalPath,String FileName,long LimitedSpeed,CallBack CB) {				//读/写 本地文件名 远程文件名 限速
 		try {
-			
+						
 			if(mode.equals("Send")) {							//文件传输
-				File file = new File(FileName);
+				File file = new File(LocalPath+FileName);
 				
 				if(!file.exists()) {
 					System.out.println("FileNotExits");
 					return false;
 				}
 				
-				DOS.writeUTF(RSA.encryptByPrivateKey("FileSend:"+FileName+":"+file.length()+":"+(new SimpleDateFormat("yyyy-MM-dd HH-mm-ss").format(new Date())), RSAPrivateKey));
+				String txt = "FileSend:"+FileName+":"+file.length();
+
+				LongStringSend(txt);
+				String Path = LongStringGet();
+				
+				String toFileName = Path+FileName;
+
+				
 				
 				boolean reply = DIS.readBoolean();
 				
 				if(reply) {
-					SocketClient Client = new SocketClient(hostName,4000,"Send",FileName,Long.toString(LimitedSpeed),toFileName);
-					Client.ClientFirstStart("Send", FileName, Long.toString(LimitedSpeed), toFileName);
+					System.out.println("Send test start");
+					SocketClient Client = new SocketClient(hostName,4000,"Send",LocalPath+FileName,Long.toString(LimitedSpeed),toFileName,DESKey,CB);
+					Client.ClientFirstStart("Send", LocalPath+FileName, Long.toString(LimitedSpeed), toFileName);
+					
+					System.out.println("Start");
 					
 					return true;
 				}
@@ -203,13 +463,20 @@ public class MainClient {
 			}
 			else if(mode.equals("Read")) {
 				
-				DOS.writeUTF(RSA.encryptByPrivateKey("FileRead:"+toFileName, RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPrivateKey("FileRead:"+FileName, RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
 				
+				
+				String Path = LongStringGet();
 				boolean reply = DIS.readBoolean();
+				String toFileName = Path+FileName;
 				
 				if(reply) {
-					SocketClient Client = new SocketClient(hostName,4000,"Read",FileName,Long.toString(LimitedSpeed),toFileName);
-					Client.ClientFirstStart("Read", FileName, Long.toString(LimitedSpeed), toFileName);
+					System.out.println("Read test start");
+					SocketClient Client = new SocketClient(hostName,4000,"Read",LocalPath+FileName,Long.toString(LimitedSpeed),toFileName,DESKey,CB);
+					Client.ClientFirstStart("Read", LocalPath+FileName, Long.toString(LimitedSpeed), toFileName);
+					
+					System.out.println("Start");
 					
 					return true;
 				}
@@ -228,10 +495,6 @@ public class MainClient {
 		}
 	}
 	
-	public boolean FileTranslate(String mode,String FileName,Long LimitSpeed) {
-		return this.FileTranslate(mode, FileName, Path+FileName,LimitSpeed);
-	}
-	
 	
 	
 	public static void main(String[] args) {
@@ -240,9 +503,54 @@ public class MainClient {
 		
 		if(MC.client.isClosed())System.out.println("Close");
 		
-		Contorl C = new Contorl(MC);
-		Thread thread = new Thread(C);
-		thread.start();
+		System.out.println(MC.Login("User1", "12345678"));
+		
+		System.out.println(MC.getLastUpdate()[0]);
+		
+		System.out.println(MC.DirIn(0));
+		
+		//System.out.println(MC.DirDelete(1, "DirC"));
+		
+		System.out.println(MC.DirIn(1));
+		
+		//System.out.println(MC.FileRename(0, "FileB", "FileA"));
+		
+		FileInfo FI = MC.FileCheck(5);
+		System.out.println(FI.getFileName()+" "+FI.getFileLength());
+		
+		//MC.FileDelete("FileB");
+		
+		System.out.println(MC.FileTranslate("Read", "F:\\JAVA\\", "ACCJPG.jpg", -1, new CB()));
+		
+		//System.out.println(MC.getPath());
+		
+		//System.out.println(MC.DirMake("DirB"));
+		
+	//	System.out.println(MC.DirFlush());
+		
+	//	System.out.println(MC.Back());
+		
+		//System.out.println(MC.DirRename("DirB", 2, "DirC"));
+		
+		//System.out.println(;
+		
+		//System.out.println(MC.DirMake("dirB"));
+		
+		System.out.println(MC.DirFlush());
+		
+		MC.Close();
+		
+		
+	}
+	
+}
+
+class CB implements CallBack{
+
+	@Override
+	public void callback() {
+		// TODO Auto-generated method stub
+		System.out.println("Over test");
 	}
 	
 }

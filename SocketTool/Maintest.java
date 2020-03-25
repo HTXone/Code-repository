@@ -1,109 +1,67 @@
-import java.util.Observable;
-import java.util.Observer;
-import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.SSLSocket;
+import java.io.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Scanner;
+import java.util.UUID;
+import java.util.Vector;
 
-public class Maintest {
 
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-		DoSomething DS = new DoSomething();
-		
-		Speed speed = new Speed(DS);
-		
-		DS.addObserver(speed);
-		
-		Thread thread = new Thread(DS);
-		Thread thread2 = new Thread(speed);
-		thread.start();
-		thread2.start();
-	
-	}
+public class Maintest implements Runnable {
 
-}
-
-@SuppressWarnings("deprecation")
-class Speed implements Runnable,Observer{
+	private Scanner input = null;
+	private DirTree DT;
+	private boolean Close = false;
 	
-	public long start = 0;
-	public long end = 0;
-	private int sum = 0;
-	private boolean close = true;
-	private DoSomething DS = null;
-	
-	private int aaaa;
-	
-	Speed(DoSomething DS){
-		this.DS = DS ;
-		close = true;
-		end = start = 0;
-		sum = 0;
-	}
-	
-	public void SpeedS() {
-		start = end;
-		end = DS.index;
-		System.out.println("Start: "+start+"end: "+end+"Speed: "+(end-start)+" kb/s");
-	}
-	
-	@Override
-	public synchronized void run() {
-		// TODO Auto-generated method stub
-		while(close) {
-			try {
-				TimeUnit.SECONDS.sleep(1);
-			}catch(InterruptedException ie) {System.out.println("Speed watch error");}
-			if(close) {SpeedS();DS.nindex = 0; DS.limit  = true;}
-			else {SpeedS();System.out.println("Closed");}
-		}
-		return ;
-	}
-
-	@Override
-	public void update(Observable o, Object arg) {
-		// TODO Auto-generated method stub
-		close = false;
-		System.out.println("will close");
-	}
-	
-}
-
-@SuppressWarnings("deprecation")
-class DoSomething extends Observable implements Runnable{
-	
-	public long index = 0;
-	public boolean limit = true;
-	private long speed = 5;
-	int nindex = 0;
-	
-	DoSomething(){
-		index = 0;
-		limit = true;
+	Maintest(DirTree DT){
+		this.DT = DT;
+		input = new Scanner(System.in);
+		this.Close = true;
 		
 	}
 	
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
-		
-		while(index<20) {
-			if(limit) {
-				try{TimeUnit.MILLISECONDS.sleep(100);}catch(InterruptedException ie) {}
-				index++;
-				nindex++;
-				if(nindex>=speed) limit = false;
-			}
-			else {
-				try{TimeUnit.MILLISECONDS.sleep(100);}catch(InterruptedException ie){}
-				System.out.println("limiting");
-			}
+		while(this.Close) {
+			switch(input.next()) {
+			case "Bulid" : {System.out.println("pleas input the tree file Name: ");DT.BulidTree(input.next());};break;
 			
+			case "Init" : {System.out.println("pleas input the tree file Name:"); System.out.println(DT.initTree(input.next()));};break;
+			
+			case "DirMake" : {
+				System.out.println("pleas input the new dir name:");DT.DirMake(input.next());
+			};break;
+			
+			case "DirIn" : {
+				System.out.println("pleas input the In num:");System.out.println(DT.DirIn(input.nextLong()));
+			};break;
+			
+			case "break" : {
+				System.out.println(DT.DirBack());
+			};break;
+			
+			case "Close":{DT.Close();
+				this.Close = false;
+			};break;
+			
+			default : break;
 		}
-		super.setChanged();
-		notifyObservers();
+		}
+		
 	}
 	
-	
+	public static void main(String[] args) {
+		
+		String Dir = "F:\\UserDir\\User1\\ROOT\\dirA";
+		
+		//File dir = new File(Dir);
+		
+		System.out.println(ChatSocket.deleteDirectory(Dir));
+		
+		
+		
+		
+	}
 	
 }
