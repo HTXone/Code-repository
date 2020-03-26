@@ -263,6 +263,12 @@ class MFFileCallBack implements CallBack{ 				//合并后解压
 			FilePort.GZtoFile(FileName+".gz", FileName);
 			File file = new File(FileName+".gz");
 			file.delete();
+			
+			for(int i = 0;i<FileNum;i++) {
+				file = new File(FileName+".gz_"+(int)(i+1)+".part");
+				file.delete();
+			}
+			
 			CB.callback(); 				//启动客户端最后回调函数
 		}
 	}
@@ -328,7 +334,7 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 		
 		LimitSpeed = Long.parseLong(LSpeed);
 		try {
-		FS.splitBySize(NewFileName, 1024*60,SFClientCallBack.this);
+		FS.splitBySize(NewFileName, 1024*1024*10,SFClientCallBack.this);
 		System.out.println("all num:"+FS.num);
 		FS.splitStart();
 		}catch (Exception e) {}
@@ -338,7 +344,10 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 	public void Sum() {
 		this.tempnum++;
 		
-		if(this.tempnum == num) {
+		System.out.println("Split: "+tempnum);
+		if(this.tempnum >= num) {
+			System.out.println("Spilt Here");
+			
 			this.callBack.callback();
 		}
 	}
@@ -361,15 +370,15 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 	
 	public void FileSend() throws Exception{
 		
-		SplitFileSendCallBack SFSCB = new SplitFileSendCallBack(FS.num);
-	
-		File file = new File(NewFileName);
-		file.delete();
+		SplitFileSendCallBack SFSCB = new SplitFileSendCallBack(FS.num,NewFileName,this.callBack);
+		
+		SFSumCallBack SFCB = new SFSumCallBack(this);
+		//File file = new File(NewFileName);
+		//file.delete();
 		if(LimitSpeed>0) {
 			for(int i = 0;i<FS.num;i++) {													//开启多个传输客户端嵌套字
 				System.out.println("Split send start");
 				
-				SFSumCallBack SFCB = new SFSumCallBack(this);
 				SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part",this.DESPassWord,SFCB);
 				
 				System.out.println(i+"begin");
@@ -377,7 +386,7 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 				if (SSC.client.isClosed())
 					System.out.println("CLOSEDDDDD");
 				else System.out.println("START");
-				SSC.INS = IOStream.BufferedIn(IOStream.DataIn(SSC.FileSend(NewFileName+"_"+(int)(i+1)+".part",SFileName+".gz_"+(int)(i+1)+".part")));
+				SSC.INS = IOStream.DESIn(IOStream.DataIn(SSC.FileSend(NewFileName+"_"+(int)(i+1)+".part",SFileName+".gz_"+(int)(i+1)+".part")),this.DESPassWord);
 				SSC.OPS.OS = IOStream.BufferedOut(IOStream.Dataout(SSC.client.getOutputStream()));
 				
 				ClientList.add(SSC);
@@ -396,7 +405,6 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 		for(int i = 0;i<FS.num;i++) {													//开启多个传输客户端嵌套字
 			System.out.println("Split send start");
 			
-			SFSumCallBack SFCB = new SFSumCallBack(this);
 			SocketClient SSC = new SocketClient(this.hostName, this.HTTPS_PORT,this.mood,NewFileName+"_"+(int)(i+1)+".part",this.LSpeed,SFileName+".gz_"+(int)(i+1)+".part",this.DESPassWord,SFCB);
 			
 			System.out.println(i+"begin");
@@ -404,7 +412,8 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 			if (SSC.client.isClosed())
 				System.out.println("CLOSEDDDDD");
 			else System.out.println("START");
-			SSC.INS = IOStream.BufferedIn(IOStream.DataIn(SSC.FileSend(NewFileName+"_"+(int)(i+1)+".part",SFileName+".gz_"+(int)(i+1)+".part")));
+			
+			SSC.INS = IOStream.DESIn(IOStream.DataIn(SSC.FileSend(NewFileName+"_"+(int)(i+1)+".part",SFileName+".gz_"+(int)(i+1)+".part")),this.DESPassWord);
 			SSC.OPS.OS = IOStream.BufferedOut(IOStream.Dataout(SSC.client.getOutputStream()));
 			
 			ClientList.add(SSC);
@@ -434,10 +443,13 @@ class SplitFileSendCallBack implements CallBack{
 	int index = 0;
 	
 	private CallBack callBack = null;
+	private String FileName = null;
 	
-	public SplitFileSendCallBack(int num) {
+	public SplitFileSendCallBack(int num,String FileName,CallBack callBack) {
 		// TODO Auto-generated constructor stub
+		this.FileName = FileName;
 		this.SFnum = num;
+		this.callBack = callBack;
 	}
 	
 	
@@ -446,9 +458,40 @@ class SplitFileSendCallBack implements CallBack{
 		index++;
 		if(index >= SFnum) {
 			System.out.println("All file send over");
+			
+			File file1 = new File(FileName);
+			file1.delete();								
+			
+			System.out.println("Spilt Here");
+				for(int i = 0;i<SFnum;i++) {
+					File file = new File(FileName+"_"+(int)(i+1)+".part");
+					file.delete();
+				}
+			this.callBack.callback();
 			return ;
 		}
 	}
+}
+
+class GzipFileSendCallBack implements CallBack{
+	private CallBack callBack;
+	private String FileName = null;
+	
+	public GzipFileSendCallBack(CallBack callBack,String FileName) {
+		// TODO Auto-generated constructor stub
+		this.callBack = callBack;
+		this.FileName = FileName;
+	}
+
+	@Override
+	public void callback() {
+		// TODO Auto-generated method stub
+		System.out.println("gzip delete start");
+		File file = new File(FileName+".gz");
+		file.delete();
+		callBack.callback();
+	}
+	
 	
 }
 
@@ -563,11 +606,14 @@ public class SocketClient implements CallBack{		//增加回调接口
 				{
 					SFileName += ".gz";
 					
-					INS = IOStream.DESIn(IOStream.DataIn(FileSend(FileName,SFileName)), DESPassWord);	//压缩传输流
+					FilePort.GZipFile(FileName);
 					
-					OPS.OS = IOStream.BufferedOut(IOStream.GZipout(IOStream.Dataout(client.getOutputStream())));
+					INS = IOStream.DESIn(IOStream.DataIn(FileSend(FileName+".gz",SFileName)), DESPassWord);	//压缩传输流
 					
-					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,SocketClient.this,LS,"Send");			//创建传输线程
+					OPS.OS = IOStream.BufferedOut(IOStream.Dataout(client.getOutputStream()));
+					
+					GzipFileSendCallBack GZSCB = new GzipFileSendCallBack(this, FileName);
+					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, RC4PassWord,GZSCB,LS,"Send");			//创建传输线程
 					
 					this.TranslateList.add(CFT);
 					
@@ -586,7 +632,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					
 					System.out.println("GZip start");
 					if(!NewFile.exists())
-						NewFileName = FilePort.GZipFile(file);
+						NewFileName = FilePort.GZipFile(FileName);
 					
 					ArrayList<SocketClient> ClientList = new ArrayList<SocketClient>();
 					ArrayList<Thread> ThreadList = new ArrayList<Thread>();
@@ -631,9 +677,9 @@ public class SocketClient implements CallBack{		//增加回调接口
 					this.LSpeed = Long.toString(speedlimit);
 					
 					for(int i = 0;i<fileLength;i++) {
-						String NewFileName  = this.FileName+".gz_"+(int)(i+1)+".part";			//分段文件各文件名 待修改
+						String NewFileName  = FileName+".gz_"+(int)(i+1)+".part";			//分段文件各文件名 待修改
 						System.out.println("Split file read start");
-						SocketClient SSC = new SocketClient(hostName, HTTPS_PORT,this.mood,NewFileName,this.LSpeed,this.SFileName+".gz_"+(i+1)+".part",this.DESPassWord,this.callBack);
+						SocketClient SSC = new SocketClient(hostName, HTTPS_PORT,this.mood,NewFileName,this.LSpeed,SFileName+".gz_"+(i+1)+".part",this.DESPassWord,this.callBack);
 						
 						DataInputStream SDOS = new DataInputStream(SSC.client.getInputStream());
 						String SplitFileName = SDOS.readUTF();
@@ -667,7 +713,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					INS = IOStream.BufferedIn(IOStream.DataIn(client.getInputStream()));
 					OPS.OS = FileGet(FileName,SocketFileName,fileLength);
 					
-					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, this.RC4PassWord,SocketClient.this,-1,"Read");
+					ClientFileTranslate CFT = new ClientFileTranslate((Socket)client, INS, OPS, this.RC4PassWord,new CAB(),-1,"Read");
 					
 					this.TranslateList.add(CFT);
 					
@@ -684,14 +730,13 @@ public class SocketClient implements CallBack{		//增加回调接口
 						for(int i=0;i<SocketFileName.split("\\.").length-1;i++)
 							NFileName+=SocketFileName.split("\\.")[i];
 						
-						System.out.println("gzFile: "+SocketFileName+"a"+" File: "+FileName);
+						System.out.println("gzFile: "+SocketFileName+" File: "+FileName);
 						
+						FilePort.GZtoFile(FileName+".gz", FileName);			//解压
 						
-						
-						FilePort.GZtoFile(SocketFileName+"a", FileName);			//解压
-						
-					//	File file = new File(SocketFileName+"a");
-						//file.delete();
+						File file = new File(FileName+".gz");
+						file.delete();
+						this.callBack.callback();
 					}
 					}
 				};break;
@@ -733,7 +778,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 			System.out.println(SFileName);
 			String[] SFileNameS = SFileName.split("\\.");
 			if(SFileNameS[SFileNameS.length-1].equals("gz")&&!FileName.split("\\.")[FileName.split("\\.").length-1].equals("gz")) {
-				FileName = SFileName+"a";		//若为压缩文件直接使用服务端保存文件的文件名
+				FileName = FileName+".gz";		//若为压缩文件直接使用服务端保存文件的文件名
 			}
 			
 			File file = new File(FileName);

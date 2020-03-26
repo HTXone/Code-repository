@@ -405,7 +405,24 @@ public static boolean deleteDirectory(String sPath) {
 			String Path = DT.getPath();
 			File file = new File(this.Path+Path+CMDS[1]);
 			
-			file.delete();							//文件删除
+			if(file.exists())
+			{
+				file.delete();							//文件删除
+			}
+			else {
+				file = new File(this.Path+Path+CMDS[1]+".gz");
+				System.out.println("Here");
+				if(file.exists()) {
+					System.out.println("right");
+					file.delete();
+				}else {
+					int num =FilePort.PartFileExist(this.Path+Path+CMDS[1]+".gz");
+					for(int i = 0;i<num;i++) {
+						file = new File(this.Path+Path+CMDS[1]+".gz_"+i+".part");
+						file.delete();
+					}
+				}
+			}
 			
 			DT.FileDelete(CMDS[1]);
 			

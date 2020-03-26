@@ -63,7 +63,7 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 	private long LimitSpeed = -1;
 	public long Sindex = 0;
 	
-	private String DESPassWord = "12345678"; 
+	private String DESPassWord = null; 
 	
 	CreatThread(Socket socket) throws Exception{		//线程建立
 		this.client = socket;
@@ -71,6 +71,9 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 	
 	public void FileSend(String[] SS) {
 		File file = new File(SS[3]);
+		
+		System.out.println(SS[3]);
+		
 		this.LimitSpeed = Long.parseLong(SS[2]);
 		
 		int num = 0;

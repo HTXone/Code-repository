@@ -39,6 +39,7 @@ class splitFileTarget implements Runnable{
 			OS.write(b,0,length);
 			OS.flush();
 			OS.close();
+			rFile.close();
 		}catch(IOException ie) {
 			System.out.println("partFile : "+count+"write error");
 			ie.printStackTrace();
@@ -103,8 +104,10 @@ public class FileSplit{
 		int countLen = (count+"").length();
 		threadPool = Executors.newCachedThreadPool();
 		
+		System.out.println(fileName);
+		
 		for(int i = 0; i<count; i++) {
-			String PartfileName = file.getName()+"_"+((int)(i+1))+".part";
+			String PartfileName = fileName+"_"+((int)(i+1))+".part";
 			System.out.println("i: "+ i+PartfileName);
 			splitFileTarget st = new splitFileTarget(i+1, PartfileName,file,byteSize,CB);
 			parts.add(st);
@@ -166,7 +169,7 @@ public class FileSplit{
 			//FStest.splitBySize("F:\\JAVA\\JavaSocket\\src\\in.bin.gz", (int)(1024*30),aaa);
 			//FStest.splitStart();
 			//FStest.threadPool.shutdown();
-			FStest.mergePartFiles(6,"F:\\\\JAVA\\\\JavaSocket\\\\src\\\\ini.bin.gz",aaa);
+			FStest.mergePartFiles(6,"F:\\UserDir\\User1\\ROOT\\DirB\\in.bin.gz",aaa);
 		}catch(Exception ie) {
 			System.out.println("error");
 			ie.printStackTrace();

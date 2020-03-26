@@ -515,12 +515,12 @@ public class MainClient {
 		
 		//System.out.println(MC.FileRename(0, "FileB", "FileA"));
 		
-		FileInfo FI = MC.FileCheck(5);
-		System.out.println(FI.getFileName()+" "+FI.getFileLength());
+		//FileInfo FI = MC.FileCheck(5);
+		//System.out.println(FI.getFileName()+" "+FI.getFileLength());
 		
-		//MC.FileDelete("FileB");
+		//MC.FileDelete("ini2.bin");
 		
-		System.out.println(MC.FileTranslate("Read", "F:\\JAVA\\", "ACCJPG.jpg", -1, new CB()));
+		System.out.println(MC.FileTranslate("Read", "F:\\", "six1.mkv", -1, new CBB()));
 		
 		//System.out.println(MC.getPath());
 		
@@ -545,7 +545,7 @@ public class MainClient {
 	
 }
 
-class CB implements CallBack{
+class CBB implements CallBack{
 
 	@Override
 	public void callback() {

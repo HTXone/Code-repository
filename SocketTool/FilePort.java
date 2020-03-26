@@ -43,18 +43,18 @@ public class FilePort{
 		return num-1;		//从1开始
 	}
 	
-	public static String GZipFile(File file) {
+	public static String GZipFile(String FileName) {
 		FileInputStream FIS;
 		BufferedOutputStream BOS;
 		FileOutputStream FOS;
 		BufferedInputStream BIS;
 		
 		try {
-			FIS = new FileInputStream(file);
+			FIS = new FileInputStream(new File(FileName));
 			//ZipEntry ZE = new ZipEntry()
 			byte[] bData = new byte[1024*10];
-			String oldFileName = file.getName();
-			BOS = new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(oldFileName+".gz")));
+			String oldFileName = FileName+".gz";
+			BOS = new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(oldFileName)));
 			int length;
 			while((length = FIS.read(bData, 0, bData.length))!=-1) {
 				BOS.write(bData, 0, bData.length);
@@ -62,7 +62,7 @@ public class FilePort{
 			}
 			BOS.close();
 			FIS.close();
-			return (oldFileName+".gz");
+			return (oldFileName);
 		}catch(Exception ie) {
 			System.out.println("error");
 			System.err.println(ie);
@@ -98,7 +98,7 @@ public class FilePort{
 	
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-
+		System.out.println(GZipFile("SumTree_.txt"));
 	}
 }
 
