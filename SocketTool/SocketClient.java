@@ -29,6 +29,10 @@ class splitSpeedWatch implements Runnable{						//配合SpeedWatch一起使用 �
 		SpeedList.add(SW);
 	}
 	
+	public long getSpeed() {
+		return this.speed;
+	}
+	
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
@@ -311,10 +315,11 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 	
 	private Vector<ClientFileTranslate> TranslateList = null;
 	private CallBack callBack = null;
+	private splitSpeedWatch SSW = null;
 	
 	private int tempnum = 0;
 	
-	SFClientCallBack(FileSplit FS,String hostName,int port, String mood,String NewFileName,String LSpeed,String SFileName,ArrayList<SocketClient>ClientList,ArrayList<Thread>ThreadList,String DESPassWord,Vector<ClientFileTranslate> TranslateList,CallBack callBack){
+	SFClientCallBack(FileSplit FS,String hostName,int port, String mood,String NewFileName,String LSpeed,String SFileName,ArrayList<SocketClient>ClientList,ArrayList<Thread>ThreadList,String DESPassWord,Vector<ClientFileTranslate> TranslateList,CallBack callBack,splitSpeedWatch SSW){
 		this.FS = FS;
 		this.hostName = hostName;
 		this.HTTPS_PORT = port;
@@ -330,6 +335,7 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 		this.TranslateList = TranslateList;
 		
 		this.callBack = callBack;
+		this.SSW = SSW;
 		
 		
 		LimitSpeed = Long.parseLong(LSpeed);
@@ -390,7 +396,7 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 				SSC.OPS.OS = IOStream.BufferedOut(IOStream.Dataout(SSC.client.getOutputStream()));
 				
 				ClientList.add(SSC);
-				splitSpeedWatch SSW = new splitSpeedWatch();
+				SSW = new splitSpeedWatch();
 				ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, "...",SFSCB,LimitSpeed,"Send");
 				SSW.addSpeedWatch(CFT.SW);
 				System.out.println("start run");
@@ -401,7 +407,7 @@ class SFClientCallBack implements CallBack{			//文件分割传输辅助类
 
 		}
 		else {
-			splitSpeedWatch SSW = new splitSpeedWatch();
+			SSW = new splitSpeedWatch();
 		for(int i = 0;i<FS.num;i++) {													//开启多个传输客户端嵌套字
 			System.out.println("Split send start");
 			
@@ -498,7 +504,7 @@ class GzipFileSendCallBack implements CallBack{
 
 public class SocketClient implements CallBack{		//增加回调接口
 	int HTTPS_PORT = 4000;
-	String hostName = "localhost";
+	String hostName = "182.92.197.26";
 	InetAddress hostAddress = null;
 	SocketFactory factory = null;
 	Socket client = null;
@@ -506,6 +512,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 	private String RC4PassWord = "123456789";
 	private String SSLPWD = "123456789";
 	private String SSLKeyPath = "SSLKey";
+	private splitSpeedWatch SSW = null;
 	
 	private Vector<ClientFileTranslate> TranslateList = null;
 	
@@ -595,7 +602,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 						this.TranslateList.add(CFT);
 						
 						Thread thread = new Thread(CFT);
-						splitSpeedWatch SSW = new splitSpeedWatch();
+						SSW = new splitSpeedWatch();
 						SSW.addSpeedWatch(CFT.SW);
 						Thread threadSW = new Thread(SSW);
 						thread.start();
@@ -618,7 +625,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					this.TranslateList.add(CFT);
 					
 					Thread thread = new Thread(CFT);
-					splitSpeedWatch SSW = new splitSpeedWatch();
+					SSW = new splitSpeedWatch();
 					SSW.addSpeedWatch(CFT.SW);
 					Thread threadSW = new Thread(SSW);
 					thread.start();
@@ -642,7 +649,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					FileSplit FS = new FileSplit();
 					System.out.println("spliting");
 					//启用带回调函数的类实例进行传输
-					SFClientCallBack SFCCB = new SFClientCallBack(FS, this.hostName, this.HTTPS_PORT, this.mood, NewFileName, this.LSpeed, SFileName, ClientList, ThreadList,this.DESPassWord,this.TranslateList,this);
+					SFClientCallBack SFCCB = new SFClientCallBack(FS, this.hostName, this.HTTPS_PORT, this.mood, NewFileName, this.LSpeed, SFileName, ClientList, ThreadList,this.DESPassWord,this.TranslateList,this,this.SSW);
 					
 				};break;
 				default : break;
@@ -659,7 +666,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 				
 				System.out.println(SocketFileName+" "+fileLength);
 				
-				splitSpeedWatch SSW = new splitSpeedWatch();
+				SSW = new splitSpeedWatch();
 
 				Thread threadSW = new Thread(SSW);
 				
@@ -693,6 +700,8 @@ public class SocketClient implements CallBack{		//增加回调接口
 						ClientList.add(SSC);
 						
 						ClientFileTranslate CFT = new ClientFileTranslate((Socket)SSC.client, SSC.INS, SSC.OPS, this.RC4PassWord,MFCB,-1,"Read");		//限速由传输发送方控制 但需要对分段限速进行技术
+						this.TranslateList.add(CFT);
+						
 						
 						SSW.addSpeedWatch(CFT.SW);
 						
@@ -860,12 +869,16 @@ public class SocketClient implements CallBack{		//增加回调接口
 		}
 	}
 	
+	public splitSpeedWatch getSpeedWatch() {
+		return this.SSW;
+	}
+	
 	public static void main(String[] args) {
 		try {
 			
 			CAB c = new CAB();
 			
-			SocketClient Client = new SocketClient("localhost",4000,args[0],args[1],args[2],args[3],args[4],c);			//命令行格式  Read/Send 本地文件 限速 目的文件
+			SocketClient Client = new SocketClient("182.92.197.26",4000,args[0],args[1],args[2],args[3],args[4],c);			//命令行格式  Read/Send 本地文件 限速 目的文件
 			Client.ClientFirstStart(args[0], args[1], args[2],args[3]);
 			//Client.FileTranslate(new FileInputStream("./in.bin"), new BufferedOutputStream(Client.getClientOutputStream())); 
 		}catch(Exception ie) {}

@@ -134,6 +134,15 @@ class TreeNode{
 		return -1;
 	}
 	
+	public void allFileDelete(FileTree FT) {
+		String txt = "";
+		for(int i = 0;i<FileTxtList.size();i++) {
+			txt = FileTxtList.get(i);
+			if(txt.equals("")) continue;
+			FT.FileDelete(Long.valueOf(txt.split("-")[1]));
+		}
+	}
+	
 	public void deleteMark(FileTree FT) {
 		String[] s = this.Infotxt.split("@@");
 		this.Infotxt = "F@@"+s[1];
@@ -279,7 +288,7 @@ public class DirTree {
 	
 	private String MainInfo = null;
 	
-	private String LastInfo = null;
+	private String LastInfo = "";
 	
 	private int BaseSize = 10002;
 	
@@ -295,7 +304,7 @@ public class DirTree {
 			RAF.write("1@@\n".getBytes());
 			
 			RAF = FilePort.getRAF(new File(FileName), 0);
-			RAF.write("T@@2000/01/01 00/00/00@@F@@-1@@-1@@0;ROOT@@0@@0@@0;;#".getBytes());
+			RAF.write("T@@2000/01/01 00/00/00@@F@@-1@@-1@@0;ROOT@@0@@0@@0;#".getBytes());
 			
 		}catch(IOException e) {
 			e.printStackTrace();
@@ -317,9 +326,9 @@ public class DirTree {
 			e.printStackTrace();
 			return null;
 		}
-		
-		LastInfo = this.MainInfo.split("@@")[1];
-		
+		if(this.MainInfo.split("@@").length>1) {
+			LastInfo = this.MainInfo.split("@@")[1];
+		}
 		this.DirSum = Long.valueOf(this.MainInfo.split("@@")[0]);
 		
 		this.MainInfo = "";
@@ -348,7 +357,7 @@ public class DirTree {
 			FIS.read(bData, 0, bData.length);
 			TreeNode HNode = new TreeNode(new String(bData).split("#")[0]);
 			
-			path = path+HNode.getDirName()+"\\";
+			path = path+HNode.getDirName()+"/";
 		}
 		
 		return path;
@@ -532,7 +541,7 @@ public class DirTree {
 			FIS.read(bData, 0, bData.length);
 			TreeNode HNode = new TreeNode(new String(bData).split("#")[0]);
 			
-			path = path+HNode.getDirName()+"\\";
+			path = path+HNode.getDirName()+"/";
 			
 			if(i == History.size()-1) {
 				DirInfoObject DIO = new DirInfoObject(HNode.getInfotxt());
@@ -572,7 +581,7 @@ public class DirTree {
 				FIS.read(bData, 0, bData.length);
 				TreeNode HNode = new TreeNode(new String(bData).split("#")[0]);
 				
-				path = path+HNode.getDirName()+"\\";
+				path = path+HNode.getDirName()+"/";
 				
 				if(i == History.size()-1) {
 					DirInfoObject DIO = new DirInfoObject(HNode.getInfotxt());
@@ -617,6 +626,7 @@ public class DirTree {
 			}
 			
 			Node.deleteMark(this.FT);
+			Node.allFileDelete(this.FT);
 			
 			RandomAccessFile RAF = FilePort.getRAF(BaseFile, DirNum*BaseSize);
 			RAF.write(Node.getLinetxt().getBytes());
@@ -643,6 +653,7 @@ public class DirTree {
 	
 	private void DBS(TreeNode Node) {			//返回后修改导入
 		Node.deleteMark(this.FT);
+		Node.allFileDelete(this.FT);
 		if(Node.getNextNum() == 0) {
 			if(Node.getSonNum() == 0) {
 				//Node.deleteMark(this.FT);
@@ -706,7 +717,7 @@ public class DirTree {
 				FIS.read(bData, 0, bData.length);
 				TreeNode Node = new TreeNode(new String(bData).split("#")[0]);
 				
-				path = path+Node.getDirName()+"\\";
+				path = path+Node.getDirName()+"/";
 			}
 			
 			this.MainInfo = this.MainInfo+"M "+path+FileName+";";
@@ -728,7 +739,7 @@ public class DirTree {
 				FIS.read(bData, 0, bData.length);
 				TreeNode Node = new TreeNode(new String(bData).split("#")[0]);
 				
-				path = path+Node.getDirName()+"\\";
+				path = path+Node.getDirName()+"/";
 				
 				if(i == History.size()-1) {
 					DirInfoObject DIO = new DirInfoObject(Node.getInfotxt());
@@ -768,7 +779,7 @@ public class DirTree {
 				FIS.read(bData, 0, bData.length);
 				TreeNode Node = new TreeNode(new String(bData).split("#")[0]);
 				
-				path = path+Node.getDirName()+"\\";
+				path = path+Node.getDirName()+"/";
 				
 				if(i == History.size()-1) {
 					Node.setFileName(OldName, NewName);
@@ -798,7 +809,7 @@ public class DirTree {
 				FIS.read(bData, 0, bData.length);
 				TreeNode Node = new TreeNode(new String(bData).split("#")[0]);
 				
-				path = path+Node.getDirName()+"\\";
+				path = path+Node.getDirName()+"/";
 				
 				if(i == History.size()-1) {
 					DirInfoObject DIO = new DirInfoObject(Node.getInfotxt());

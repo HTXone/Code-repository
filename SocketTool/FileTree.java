@@ -179,6 +179,7 @@ public class FileTree {							//格式：T/F;FileName;FileLength;FileChangeTime
 			RAF = FilePort.getRAF(BaseFile, 0);
 			
 			RAF.write((this.Sum+"@@"+this.FileNum+"#").getBytes());
+			RAF.close();
 			return true;
 		}catch(Exception e) {
 			e.printStackTrace();

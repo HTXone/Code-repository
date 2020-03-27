@@ -34,7 +34,7 @@ class ChatSocket implements Runnable{
 	
 	private static final String BTableName = "BaseDataTable";		//用户信息库
 	
-	private static final String BasePath = "F:\\UserDir\\";			//存储根目录（待修改）
+	private static final String BasePath = "/home/UserDir/";			//存储根目录（待修改）
 	
 	private DirTree DT = null;						//操作目录树
 	private FileTree FT = null;
@@ -103,18 +103,20 @@ class ChatSocket implements Runnable{
 					dir.mkdir();
 				}
 				
-				SQL.Insert(BTableName, "(UserName,UserPWD,UserPath) VALUES ('"+CMDS[1]+"','"+HashCipher.Cihper(CMDS[2])+"','"+BasePath+CMDS[1]+"\\')");
+				dir = new File(BasePath+CMDS[1]+"/ROOT");
+				dir.mkdir();
+				
+				SQL.Insert(BTableName, "(UserName,UserPWD,UserPath,UUID) VALUES ('"+CMDS[1]+"','"+HashCipher.Cihper(CMDS[2])+"','"+BasePath+CMDS[1]+"/','"+UUIDMake.getNewUUID()+"')");
+				
+				DOS.writeUTF(RSA.encryptByPrivateKey("Logon:True", RSAPrivateKey));
 				
 				System.out.println("Over");		//用户记录入库
 				
-				DT.BulidTree(BasePath+CMDS[1]+"\\DirRecord");		//记录树建立
+				DT.BulidTree(BasePath+CMDS[1]+"/DirRecord");		//记录树建立
 				
-				FT.BulidTree(BasePath+CMDS[1]+"\\FileRecord");
-				
+				FT.BulidTree(BasePath+CMDS[1]+"/FileRecord");
 				
 			}
-			
-			DOS.writeUTF(RSA.encryptByPrivateKey("Logon:True", RSAPrivateKey));
 			
 		}catch(Exception e) {
 			try {
@@ -156,16 +158,27 @@ class ChatSocket implements Runnable{
 				System.out.println("True");
 				
 				this.IsLogin = true;
-				this.Path = BasePath+CMDS[1]+"\\";				//初始化path
+				this.Path = BasePath+CMDS[1]+"/";				//初始化path
 				
 				DOS.writeUTF(RSA.encryptByPrivateKey("login:Success", RSAPrivateKey));
 				
-				this.FT.InitTree(BasePath+CMDS[1]+"\\FileRecord");
+				this.FT.InitTree(BasePath+CMDS[1]+"/FileRecord");
 				
-				this.DT.initTree(BasePath+CMDS[1]+"\\DirRecord",FT);			//启动记录文件功能
+				this.DT.initTree(BasePath+CMDS[1]+"/DirRecord",FT);			//启动记录文件功能
 				
-				this.DESKey = Long.toString(new Date().getTime()%100000000);
+				long key = new Date().getTime();
+				while(key<100000000) {
+					key*=10;
+				}
+				key = key%100000000;
 				
+				this.DESKey = Long.toString(key);
+				
+				System.out.println(DESKey.length());
+				
+				if(DESKey.length()<8) {
+					DESKey = DESKey+"0";
+				}
 				
 				DOS.writeUTF(RSA.encryptByPrivateKey(Path, RSAPrivateKey));
 				DOS.writeUTF(RSA.encryptByPrivateKey(DESKey, RSAPrivateKey));
@@ -263,7 +276,7 @@ class ChatSocket implements Runnable{
 		try {
 			DT.DirRename(Long.valueOf(CMDS[2]), CMDS[3]);
 			
-			String path = this.Path+"\\"+DT.getPath();
+			String path = this.Path+"/"+DT.getPath();
 			
 			File file = new File(path+CMDS[1]);
 			
@@ -360,14 +373,13 @@ public static boolean deleteDirectory(String sPath) {
 			System.out.println(this.Path+Path+CMDS[2]);
 			
 			File file = new File(this.Path+Path+CMDS[2]);
+			DT.DirDelete(Long.valueOf(CMDS[1]));
 			if(!file.exists()) {
 				DOS.writeBoolean(false);
 			}
 			else {
 				deleteDirectory(this.Path+Path+CMDS[2]);
 			}
-			
-			DT.DirDelete(Long.valueOf(CMDS[1]));
 			
 			DOS.writeBoolean(true);
 		}catch(Exception e) {
@@ -441,13 +453,16 @@ public static boolean deleteDirectory(String sPath) {
 	}
 	
 	public void DirMake(String[] CMDS) {				//CMDS格式： DirMake:DirName;
-		DT.DirMake(CMDS[1]);
 		
 		String path = DT.getPath();
-		
+		System.out.println(this.Path+path+CMDS[1]);
 		File file = new File(this.Path+path+CMDS[1]);
 		try {
-			DOS.writeBoolean(file.mkdir());
+			boolean t = file.mkdir();
+			DOS.writeBoolean(t);
+			if(t) {
+				DT.DirMake(CMDS[1]);
+			}
 		}catch(Exception e) {
 			try {
 				
@@ -570,7 +585,7 @@ public static boolean deleteDirectory(String sPath) {
 				case "FileRename" : FileRename(CMDS);break;
 				case "FileSend" : FileGet(CMDS);break;
 				case "FileRead" : FileSend(CMDS);break;
-				
+				case "DirCheck" : DirCheck(CMDS);break;
 				default : break;
 				
 				}			

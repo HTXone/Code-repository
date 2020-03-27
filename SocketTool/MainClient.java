@@ -67,6 +67,7 @@ public class MainClient {
 	private String UserName = null;
 	
 	private String hostName = null;
+	private SocketClient FileClient = null;
 	
 	MainClient(String hostName,int port){
 		try {
@@ -95,7 +96,7 @@ public class MainClient {
 	}
 	
 	MainClient(){
-		this("localhost",4001);
+		this("182.92.197.26",4001);
 	}
 	
 	public void LongStringSend(String txt) throws IOException, Exception {
@@ -285,7 +286,8 @@ public class MainClient {
 			String[] CMDS = CMD.split(":");
 			
 			if(CMDS[0].equals("DirCheck")) {
-				return new DirInfoObject(CMDS[1]);
+				System.out.println(CMDS[1].split(";")[0]);
+				return new DirInfoObject("T@@"+CMDS[1].split(";")[0]);
 			}
 			
 		}catch(Exception e) {
@@ -451,8 +453,8 @@ public class MainClient {
 				
 				if(reply) {
 					System.out.println("Send test start");
-					SocketClient Client = new SocketClient(hostName,4000,"Send",LocalPath+FileName,Long.toString(LimitedSpeed),toFileName,DESKey,CB);
-					Client.ClientFirstStart("Send", LocalPath+FileName, Long.toString(LimitedSpeed), toFileName);
+					FileClient = new SocketClient(hostName,4000,"Send",LocalPath+FileName,Long.toString(LimitedSpeed),toFileName,DESKey,CB);
+					FileClient.ClientFirstStart("Send", LocalPath+FileName, Long.toString(LimitedSpeed), toFileName);
 					
 					System.out.println("Start");
 					
@@ -473,8 +475,8 @@ public class MainClient {
 				
 				if(reply) {
 					System.out.println("Read test start");
-					SocketClient Client = new SocketClient(hostName,4000,"Read",LocalPath+FileName,Long.toString(LimitedSpeed),toFileName,DESKey,CB);
-					Client.ClientFirstStart("Read", LocalPath+FileName, Long.toString(LimitedSpeed), toFileName);
+					FileClient = new SocketClient(hostName,4000,"Read",LocalPath+FileName,Long.toString(LimitedSpeed),toFileName,DESKey,CB);
+					FileClient.ClientFirstStart("Read", LocalPath+FileName, Long.toString(LimitedSpeed), toFileName);
 					
 					System.out.println("Start");
 					
@@ -495,7 +497,17 @@ public class MainClient {
 		}
 	}
 	
+	public long getSpeed() {
+		return this.FileClient.getSpeedWatch().getSpeed();
+	}
 	
+	public void Pause() {
+		this.FileClient.Pause();
+	}
+	
+	public void Action() {
+		this.FileClient.Active();
+	}
 	
 	public static void main(String[] args) {
 		
@@ -503,24 +515,30 @@ public class MainClient {
 		
 		if(MC.client.isClosed())System.out.println("Close");
 		
+		//MC.Logon("User1", "12345678");
+		
 		System.out.println(MC.Login("User1", "12345678"));
 		
-		System.out.println(MC.getLastUpdate()[0]);
+		//System.out.println(MC.getLastUpdate()[0]);
 		
 		System.out.println(MC.DirIn(0));
 		
-		//System.out.println(MC.DirDelete(1, "DirC"));
+		//System.out.println(MC.FileDelete("JPGB.jpg"));
 		
-		System.out.println(MC.DirIn(1));
+		System.out.println(MC.DirIn(3));
 		
-		//System.out.println(MC.FileRename(0, "FileB", "FileA"));
+		//System.out.println(MC.FileRename(15, "JPG.jpg", "JPGB.jpg"));
 		
-		//FileInfo FI = MC.FileCheck(5);
+		//FileInfo FI = MC.FileCheck(15);
 		//System.out.println(FI.getFileName()+" "+FI.getFileLength());
 		
-		//MC.FileDelete("ini2.bin");
+		//System.out.println(MC.DirCheck(0).getDirChangeTime());
 		
-		System.out.println(MC.FileTranslate("Read", "F:\\", "six1.mkv", -1, new CBB()));
+		//MC.FileDelete("JPGA.jpg");
+		
+		//MC.DirDelete(2, "DirB");
+		
+		System.out.println(MC.FileTranslate("Read", "D:\\Data\\", "six1.mkv", -1, new CBB()));
 		
 		//System.out.println(MC.getPath());
 		
