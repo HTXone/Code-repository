@@ -1,5 +1,7 @@
 # 传输工具使用文档（Read me）
 
+### Java环境：jdk10
+
 ### 相关信息类介绍：
 
 1. 文件夹信息类(DirInfoObject)：
@@ -68,6 +70,7 @@ void Close();
 String Login(String UserName,String PWD);	//用户名 密码
 
 //用户注册 返回注册信息 格式:T或F:Fail Reasons
+//密码不得超过16位
 //Reasons 格式：1-UserName exits
 //			   2-Error form of UserName
 //			   3-Error form of PWD
@@ -133,14 +136,69 @@ void Active();
 
 ```
 
-服务端类(MainServer)：
-位于MianServer.java文件下
+服务端类(MainServer,SSLSocketServer)：
+位于MianServer.java与SSLSocketServer.java文件下
 需要环境    postgresql-42.2.10.jar
 
 方法：
 
-```java
+```
 //启动 直接在服务器端控制台启动 class文件即可
-启动命令：还没写完。。。测试完后补全
+启动命令：将控制台跳转到/home/javatest/JavaSocket/src/ 下
+    启动服务端
+    java -cp ./postgresql-42.2.10.jar:./ MainServer
+    启动传输服务端
+    java -cp ./ SSLSocketServer
+    (传输时确保两服务端都已启动)
+    
 ```
 
+
+
+### 环境配置：
+
+从官网上下载jdk的.tar.gz压缩包传输到服务器 
+
+在/usr目录下新建java文件夹  并在此文件夹中解压压缩包
+
+在/etc/profile 文件中配置环境变量 在末尾加上
+
+```
+ JAVA_HOME=/usr/java/jdk1.x.x_111
+      PATH=$JAVA_HOME/bin:$PATH
+      CLASSPATH=.:$JAVA_HOME/lib/dt.jar:
+      $JAVA_HOME/lib/tools.jar
+      export JAVA_HOME
+      export PATH
+      export CLASSPATH
+```
+
+并使用 
+
+```
+source /etc/profile
+```
+
+使配置生效 最后使用
+
+```
+java -version
+```
+
+进行版本检验即可。
+
+参考：
+
+[]: https://jingyan.baidu.com/article/c1465413f3fb860bfdfc4c6a.html
+
+
+
+### 服务端启动：
+
+将源文件上传到服务端后输入服务端启动操作命令即可
+
+
+
+### 客户端使用：
+
+开启一个新的控制线程后新建客户端连接对象并调用客户端方法即可
