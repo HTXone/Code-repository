@@ -275,6 +275,8 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 			in.close();
 		}catch(Exception e) {
 			System.out.println("File translate error");
+			super.setChanged();
+			notifyObservers();
 			e.printStackTrace();
 		}
 	}

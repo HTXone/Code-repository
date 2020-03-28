@@ -25,12 +25,56 @@ class Contorl implements Runnable{
 		while(!IsClose) {
 			String CMD = input.next();
 			switch(CMD) {
-			case "Login" : {System.out.println("Please input UserName and PWD");MC.Login(input.next(), input.next());}break;
+			case "Login" : {System.out.println("Please input UserName and PWD");System.out.println(MC.Login(input.next(), input.next()));}break;
 			
 			//case "FileShow" : {MC.FileShow();};break;
 			
 			case "Logon" : {
-				System.out.println();
+				System.out.println("Please input UserName and PWD");System.out.println(MC.Logon(input.next(), input.next()));
+			};break;
+			
+			case "DirMake" : {
+				System.out.println("Please input the new DirName");System.out.println(MC.DirMake(input.next()));
+			};break;
+			
+			case "DirRename":{
+				System.out.println("Please input the OldName,Dirnum,NewName");System.out.println(MC.DirRename(input.next(), Long.valueOf(input.next()), input.next()));
+			};break;
+			
+			case "DirDelete" : {
+				System.out.println("Please input the Dirnum,Dirname");System.out.println(MC.DirDelete(input.nextLong(), input.next()));
+			};break;
+			
+			case "DirCheck" : {
+				System.out.println("Please input the Dirnum");System.out.println(MC.DirCheck(input.nextLong()).getDirChangeTime());
+			};break;
+			
+			case "DirIn" : {
+				System.out.println("please input the Dirnum");System.out.println(MC.DirIn(input.nextLong()));
+			};break;
+			
+			case "Flush" : {
+				System.out.println(MC.DirFlush());
+			};break;
+			
+			case "Back" : {
+				System.out.println(MC.Back());
+			};break;
+			
+			case "FileTranslate" : {
+				System.out.println("Please input the mode,LocalPath,FileName,Speed");System.out.println(MC.FileTranslate(input.next(), input.next(), input.next(), input.nextLong(), new CAB()));
+			};break;
+			
+			case "FileReName" : {
+				System.out.println("Please input the Filenum NewName OldName");System.out.println(MC.FileRename(input.nextLong(), input.next(), input.next()));
+			};break;
+			
+			case "FileDelete" : {
+				System.out.println("Please input the FileName");System.out.println(MC.FileDelete(input.next()));
+			};break;
+			
+			case "FileCheck" : {
+				System.out.println("please input the Filenum");System.out.println(MC.FileCheck(input.nextLong()).getFileChangeTime());
 			};break;
 			
 			//case "FileDelete" : {System.out.println("Please input the FileName you want to delete");MC.FileDelete(input.next());};break;
@@ -82,12 +126,12 @@ public class MainClient {
 			
 			this.hostName = hostName;
 			
-			System.out.println("This RSA:"+RSAPublicKey);
+			//System.out.println("This RSA:"+RSAPublicKey);
 			
 			DOS.writeUTF(RSAPublicKey);
 			this.RSAKey = DIS.readUTF();
 			
-			System.out.println("RSA: "+RSAKey);
+			//System.out.println("RSA: "+RSAKey);
 			
 		}catch(Exception e) {
 			e.printStackTrace();
@@ -157,7 +201,7 @@ public class MainClient {
 			
 			if(CMDS[0].equals("login")) {
 				if(CMDS[1].equals("Success")) {
-					System.out.println("Login Success");
+					//System.out.println("Login Success");
 					
 					this.IsLogin = true;
 					
@@ -165,7 +209,7 @@ public class MainClient {
 					
 					this.DESKey = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
 					
-					System.out.println("Path: "+Path+" DES: "+DESKey);
+					//System.out.println("Path: "+Path+" DES: "+DESKey);
 					
 					this.UserName = UserName;
 					
@@ -176,7 +220,7 @@ public class MainClient {
 					case "1" : return "F:1-ErrorUserName";
 					case "2" : return "F:2-ErrorPWD";
 					}
-					System.out.println("Login Fail");
+					//System.out.println("Login Fail");
 				}
 			}else {
 				System.out.println("ERROR");
@@ -265,7 +309,7 @@ public class MainClient {
 			
 			String CMD = LongStringGet();
 			
-			System.out.println(CMD);
+			//System.out.println(CMD);
 			
 			return CMD;
 			
@@ -286,7 +330,7 @@ public class MainClient {
 			String[] CMDS = CMD.split(":");
 			
 			if(CMDS[0].equals("DirCheck")) {
-				System.out.println(CMDS[1].split(";")[0]);
+				//System.out.println(CMDS[1].split(";")[0]);
 				return new DirInfoObject("T@@"+CMDS[1].split(";")[0]);
 			}
 			
@@ -452,11 +496,11 @@ public class MainClient {
 				boolean reply = DIS.readBoolean();
 				
 				if(reply) {
-					System.out.println("Send test start");
+					//System.out.println("Send test start");
 					FileClient = new SocketClient(hostName,4000,"Send",LocalPath+FileName,Long.toString(LimitedSpeed),toFileName,DESKey,CB);
 					FileClient.ClientFirstStart("Send", LocalPath+FileName, Long.toString(LimitedSpeed), toFileName);
 					
-					System.out.println("Start");
+					//System.out.println("Start");
 					
 					return true;
 				}
@@ -474,11 +518,11 @@ public class MainClient {
 				String toFileName = Path+FileName;
 				
 				if(reply) {
-					System.out.println("Read test start");
+					//System.out.println("Read test start");
 					FileClient = new SocketClient(hostName,4000,"Read",LocalPath+FileName,Long.toString(LimitedSpeed),toFileName,DESKey,CB);
 					FileClient.ClientFirstStart("Read", LocalPath+FileName, Long.toString(LimitedSpeed), toFileName);
 					
-					System.out.println("Start");
+					//System.out.println("Start");
 					
 					return true;
 				}
@@ -513,19 +557,25 @@ public class MainClient {
 		
 		MainClient MC = new MainClient();
 		
-		if(MC.client.isClosed())System.out.println("Close");
+		Contorl C = new Contorl(MC);
+		
+		Thread thread = new Thread(C);
+		
+		thread.start();
+		
+	//	if(MC.client.isClosed())System.out.println("Close");
 		
 		//MC.Logon("User1", "12345678");
 		
-		System.out.println(MC.Login("User1", "12345678"));
+		//System.out.println(MC.Login("User1", "12345678"));
 		
 		//System.out.println(MC.getLastUpdate()[0]);
 		
-		System.out.println(MC.DirIn(0));
+		//System.out.println(MC.DirIn(0));
 		
 		//System.out.println(MC.FileDelete("JPGB.jpg"));
 		
-		System.out.println(MC.DirIn(3));
+		//System.out.println(MC.DirIn(3));
 		
 		//System.out.println(MC.FileRename(15, "JPG.jpg", "JPGB.jpg"));
 		
@@ -538,7 +588,7 @@ public class MainClient {
 		
 		//MC.DirDelete(2, "DirB");
 		
-		System.out.println(MC.FileTranslate("Read", "D:\\Data\\", "six1.mkv", -1, new CBB()));
+	//	System.out.println(MC.FileTranslate("Read", "D:\\Data\\", "six1.mkv", -1, new CBB()));
 		
 		//System.out.println(MC.getPath());
 		
@@ -554,9 +604,9 @@ public class MainClient {
 		
 		//System.out.println(MC.DirMake("dirB"));
 		
-		System.out.println(MC.DirFlush());
+	//	System.out.println(MC.DirFlush());
 		
-		MC.Close();
+	//	MC.Close();
 		
 		
 	}
