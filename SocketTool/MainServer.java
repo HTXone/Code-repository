@@ -72,7 +72,7 @@ class ChatSocket implements Runnable{
 	public void Close() {
 		try {
 			this.client.close();
-			this.SQL.Close();
+			if(!this.SQL.IsClose()) this.SQL.Close();
 			this.DT.Close();
 			
 			System.out.println("Close");
@@ -183,6 +183,7 @@ class ChatSocket implements Runnable{
 				DOS.writeUTF(RSA.encryptByPrivateKey(Path, RSAPrivateKey));
 				DOS.writeUTF(RSA.encryptByPrivateKey(DESKey, RSAPrivateKey));
 				
+				this.SQL.Close();
 				
 				return true;
 			}
@@ -587,11 +588,21 @@ public static boolean deleteDirectory(String sPath) {
 				case "FileRead" : FileSend(CMDS);break;
 				case "DirCheck" : DirCheck(CMDS);break;
 				default : break;
-				
 				}			
 			}
+			if(!SQL.IsClose())
+				this.SQL.Close();
+			//this.DT.Close();
 		}catch(Exception e) {
 			e.printStackTrace();
+			this.SQL.Close();
+			try {
+				this.client.close();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			this.DT.Close();
 		}	
 	}
 }

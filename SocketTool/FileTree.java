@@ -35,7 +35,7 @@ public class FileTree {							//格式：T/F;FileName;FileLength;FileChangeTime
 					RAF.write(" ".getBytes());
 				}RAF.write("#\n".getBytes());
 			}
-			
+			RAF.close();
 			return true;
 			
 		}catch(Exception e) {
@@ -54,7 +54,7 @@ public class FileTree {							//格式：T/F;FileName;FileLength;FileChangeTime
 			
 			this.Sum = Long.valueOf(s.split("@@")[0]);
 			this.FileNum = Long.valueOf(s.split("@@")[1]);
-			
+			RAF.close();
 			return true;
 		}catch(Exception e) {
 			e.printStackTrace();
@@ -92,6 +92,8 @@ public class FileTree {							//格式：T/F;FileName;FileLength;FileChangeTime
 			
 			System.out.println(new String(bData));
 		
+			FIS.close();
+			
 			return num;						//无冲突 直接返回可用行
 		
 		} catch (Exception e) {				//出错 返回0（0行为根目录必占用）
@@ -138,6 +140,7 @@ public class FileTree {							//格式：T/F;FileName;FileLength;FileChangeTime
 			RandomAccessFile RAF = FilePort.getRAF(BaseFile, 18+num*102);
 			RAF.write(FI.getMainInfo().getBytes());
 			
+			RAF.close();
 			return true;
 		}catch(Exception e) {
 			e.printStackTrace();
@@ -160,6 +163,7 @@ public class FileTree {							//格式：T/F;FileName;FileLength;FileChangeTime
 			RandomAccessFile RAF = FilePort.getRAF(BaseFile, 18+num*102);
 			RAF.write(FI.getMainInfo().getBytes());
 			
+			RAF.close();
 			return true;
 		}catch(Exception e) {
 			e.printStackTrace();

@@ -146,6 +146,15 @@ public class PostgreSQL{
 		}
 	}
 	
+	public boolean IsClose() {
+		try {
+			return this.connect.isClosed();
+		}catch(Exception e) {
+			e.printStackTrace();
+			return true;
+		}
+	}
+	
 	public static void main(String[] args) {
 		PostgreSQL PSQL = new PostgreSQL();
 		

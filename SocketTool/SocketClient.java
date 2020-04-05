@@ -169,10 +169,9 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 						OPS.OS.flush();
 						if(mode.equals("Send")&&LimitSpeed>0&&Sindex>=LimitSpeed) limit = false;			//达到最高速度限速
 					}
-					if(length == -1) {
+					if(length == -1) {		//完成传输关闭
 						super.setChanged();
 						notifyObservers();
-						
 					}
 				}
 				else {
@@ -180,12 +179,17 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 						TimeUnit.MILLISECONDS.sleep(10);			//限速睡眠1小段时间
 					}catch(InterruptedException ie) {
 						System.out.println("Speed limit error");
+						OPS.OS.close();
+						INS.close();
+						super.setChanged();
+						notifyObservers();
 					}
 				}
 			}
-		
 			OPS.OS.close();
 			INS.close();
+			super.setChanged();
+			notifyObservers();
 		}
 	
 		else {						//文件输入由文件发送端进行限速控制 因此不需要进行限速管理
@@ -203,11 +207,14 @@ class ClientFileTranslate extends Observable implements Runnable{				//文件传
 			OPS.RAF.close();
 			INS.close();
 		}
+		
 		CB.callback();
 		
 	}catch(IOException ie) {
 		System.out.println("File Translate error");
 		ie.printStackTrace();
+		super.setChanged();
+		notifyObservers();
 	}
 	}
 
@@ -631,13 +638,13 @@ public class SocketClient implements CallBack{		//增加回调接口
 					thread.start();
 					threadSW.start();
 				};break;
-				case 3 : {					//大于1G的文件分段压缩传输（要修改）
-					client.close();		//关闭当前嵌套字
-					System.out.println("ZS in here");
+				case 3 : {					//大于1G的文件分段压缩传输
+					client.close();		//关闭当前嵌套字 使用新嵌套字作为分段传输
+					//System.out.println("ZS in here");
 					String NewFileName = FileName+".gz";
 					File NewFile = new File(NewFileName);
 					
-					System.out.println("GZip start");
+					System.out.println("GZip start");		//开始压缩
 					if(!NewFile.exists())
 						NewFileName = FilePort.GZipFile(FileName);
 					
@@ -648,7 +655,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 					
 					FileSplit FS = new FileSplit();
 					System.out.println("spliting");
-					//启用带回调函数的类实例进行传输
+					//启用带回调函数的类实例进行压缩完成后的分片传输
 					SFClientCallBack SFCCB = new SFClientCallBack(FS, this.hostName, this.HTTPS_PORT, this.mood, NewFileName, this.LSpeed, SFileName, ClientList, ThreadList,this.DESPassWord,this.TranslateList,this,this.SSW);
 					
 				};break;

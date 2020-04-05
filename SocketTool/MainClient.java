@@ -86,6 +86,7 @@ class Contorl implements Runnable{
 			default : break;
 			}
 		}
+		System.out.println("Closed!");
 	}
 	
 }

@@ -91,7 +91,7 @@ class TreeNode{
 		
 		for(int i =0 ;i<FileTxtList.size();i++) {
 			
-			if(FileTxtList.get(i).equals("")) continue;
+			if(FileTxtList.get(i).equals("")||FileTxtList.get(i) == null) continue;
 			
 			this.Filetxt = this.Filetxt+FileTxtList.get(i)+",";
 		}
@@ -122,24 +122,33 @@ class TreeNode{
 	
 	public long FileDelete(String Name,FileTree FT) {
 		String txt = "";
+		try {
 		for(int i = 0;i<FileTxtList.size();i++) {
 			txt = FileTxtList.get(i);
+			if(!(txt.split("-").length>1)) continue;
 			if(txt.split("-")[0].equals(Name)) {
 				FileTxtList.remove(i);
 				FT.FileDelete(Long.valueOf(txt.split("-")[1]));
 				
 				return Long.valueOf(txt.split("-")[1]);
 			}
+		}}
+		catch(Exception e) {
+			e.printStackTrace();
 		}
 		return -1;
 	}
 	
 	public void allFileDelete(FileTree FT) {
 		String txt = "";
+		try {
 		for(int i = 0;i<FileTxtList.size();i++) {
 			txt = FileTxtList.get(i);
-			if(txt.equals("")) continue;
+			if(txt.equals("")||txt == null||!(txt.split("-").length>1)) continue;
 			FT.FileDelete(Long.valueOf(txt.split("-")[1]));
+		}}
+		catch(Exception e) {
+			e.printStackTrace();
 		}
 	}
 	
@@ -149,7 +158,8 @@ class TreeNode{
 		
 		for(int i = 0;i<this.FileTxtList.size();i++) {							//相关文件删除标记
 			if(this.FileTxtList.get(i).equals("")) continue;
-			FT.FileDelete(Long.valueOf(this.FileTxtList.get(i).split("-")[1]));
+			if(this.FileTxtList.get(i).split("-").length>1)
+				FT.FileDelete(Long.valueOf(this.FileTxtList.get(i).split("-")[1]));
 		}
 		
 	}
@@ -306,6 +316,8 @@ public class DirTree {
 			RAF = FilePort.getRAF(new File(FileName), 0);
 			RAF.write("T@@2000/01/01 00/00/00@@F@@-1@@-1@@0;ROOT@@0@@0@@0;#".getBytes());
 			
+			RAF.close();
+			
 		}catch(IOException e) {
 			e.printStackTrace();
 		}
@@ -322,6 +334,7 @@ public class DirTree {
 		try {
 			RandomAccessFile RAF = FilePort.getRAF(BaseFile, Sum*BaseSize);
 			MainInfo = RAF.readLine();
+			RAF.close();
 		}catch(Exception e) {
 			e.printStackTrace();
 			return null;
@@ -346,7 +359,7 @@ public class DirTree {
 		return this.initTree(DirTreeName);
 	}
 
-	public String getPath() {
+	public String getPath() {			//获取当前距用户根目录的路径
 		String path = "";
 		try {
 		FileInputStream FIS = null;
@@ -359,6 +372,7 @@ public class DirTree {
 			
 			path = path+HNode.getDirName()+"/";
 		}
+		FIS.close();
 		
 		return path;
 		}catch(Exception e) {
@@ -394,7 +408,7 @@ public class DirTree {
 				FIS.read(bData,0,1);
 				
 			}
-			
+			FIS.close();
 			System.out.println(new String(bData));
 		
 			return num;						//无冲突 直接返回可用行
@@ -439,6 +453,8 @@ public class DirTree {
 				//DirInfo = DirInfo+"@@"+SonDirNum;
 				
 			}
+			
+			FIS.close();
 			
 			return DirInfo;
 			
@@ -503,6 +519,8 @@ public class DirTree {
 			}else {
 				LastNode.setSonNum(NewDirNum);
 			}
+			
+			FIS.close();
 			//LastLine = Args[0]+Args2[0]+Args2[1]+NewDirNum+Args2[3]+Args[2];		//前一文件夹记录变动
 			
 			DirInfoObject DIO = new DirInfoObject("T@@2000/01/01 00/00/00@@F@@-1@@-1@@0");
@@ -516,6 +534,8 @@ public class DirTree {
 			
 			RAF = FilePort.getRAF(BaseFile, NewDirNum*BaseSize);						//修改新文件夹记录
 			RAF.write(NewInfo.getBytes());
+			
+			RAF.close();
 			
 			this.DirSum++;
 			return true;
@@ -551,6 +571,8 @@ public class DirTree {
 				DirNum = History.get(i);
 			}
 		}
+		
+		FIS.close();
 		//修改记录
 		this.MainInfo = this.MainInfo+"A "+path+NewName+";";
 		}catch(Exception e) {
@@ -644,6 +666,9 @@ public class DirTree {
 				this.DirSum--;
 			}
 			this.DirSum--;
+			
+			FIS.close();
+			RAF.close();
 			return true;
 		}catch(Exception e) {
 			e.printStackTrace();
@@ -674,6 +699,8 @@ public class DirTree {
 					this.DirSum--;
 					
 					//Node.deleteMark(this.FT);
+					FIS.close();
+					RAF.close();
 					return ;
 				}catch(Exception e) {
 					e.printStackTrace();
@@ -695,6 +722,8 @@ public class DirTree {
 				this.DirSum--;
 				
 				//Node.deleteMark(this.FT);
+				FIS.close();
+				RAF.close();
 				return ;
 			}catch(Exception e) {
 				e.printStackTrace();
@@ -720,6 +749,7 @@ public class DirTree {
 				path = path+Node.getDirName()+"/";
 			}
 			
+			FIS.close();
 			this.MainInfo = this.MainInfo+"M "+path+FileName+";";
 			
 			}catch(Exception e) {
@@ -755,10 +785,12 @@ public class DirTree {
 					
 					RandomAccessFile RAF = FilePort.getRAF(BaseFile, History.get(i)*BaseSize);
 					RAF.write(Node.getLinetxt().getBytes());
+					RAF.close();
 					
 				}
 			}
 			
+			FIS.close();
 			this.MainInfo = this.MainInfo+"A "+path+FileName+";";
 
 		}catch(Exception e) {
@@ -786,10 +818,11 @@ public class DirTree {
 					
 					RandomAccessFile RAF = FilePort.getRAF(BaseFile, History.get(i)*BaseSize);
 					RAF.write(Node.getLinetxt().getBytes());
+					RAF.close();
 					
 				}
 			}
-			
+			FIS.close();
 			this.MainInfo = this.MainInfo+"M "+path+NewName+";";
 
 		}catch(Exception e) {
@@ -826,6 +859,7 @@ public class DirTree {
 					//this.DirSum--;
 				}
 			}
+			FIS.close();
 			this.MainInfo = this.MainInfo+"D "+path+FileName+";";
 		}catch(Exception e) {
 			e.printStackTrace();
@@ -878,6 +912,7 @@ public class DirTree {
 		RandomAccessFile RAF = FilePort.getRAF(BaseFile, Sum*BaseSize);
 		
 		RAF.write((String.valueOf(this.DirSum)+"@@"+this.MainInfo+" \n").getBytes());
+		RAF.close();
 		}catch(Exception e) {
 			System.out.println("Close Error!!!");
 			e.printStackTrace();

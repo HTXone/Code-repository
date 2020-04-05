@@ -226,11 +226,12 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 		System.out.println("running");
 		if(client.isClosed()) {System.out.println("Client is closed");return ;}
 		else System.out.println("file translate start!");
+		ServerSpeedLimit SSLimit = new ServerSpeedLimit(this);			//添加速度监听器
 		try {
 			byte[] bData = new byte[1024];
 			int length = 0;
 			OutputStream out_;
-			ServerSpeedLimit SSLimit = new ServerSpeedLimit(this);			//添加速度监听器
+			//ServerSpeedLimit SSLimit = new ServerSpeedLimit(this);			//添加速度监听器
 			this.addObserver(SSLimit);
 			Thread ThreadSSW = new Thread(SSLimit);
 			ThreadSSW.start();
@@ -275,6 +276,7 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 			in.close();
 		}catch(Exception e) {
 			System.out.println("File translate error");
+			SSLimit.Nclose = false;
 			super.setChanged();
 			notifyObservers();
 			e.printStackTrace();
@@ -299,19 +301,7 @@ public class SSLSocketServer {					//服务器
 	private static ServerSocket getSocket(int thePort) {				//服务器嵌套字建立
 		ServerSocket s = null;
 		try {
-			//服务器无法安装SSL证书 作废
-			//String key = "F:\\JAVA\\JavaSocket\\src\\SSLKey";		//证书名
-			//char keyStorePass[] = "123456789".toCharArray();		//证书密码
-			//char keyPassword[] = "123456789".toCharArray();		//证书别称所使用的密码
-			//KeyStore ks = KeyStore.getInstance("JKS");			//创建JKS密钥库
-			//ks.load(new FileInputStream(key), keyStorePass);	
-			//KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");	//创建管理密钥库的管理器
-			//kmf.init(ks, keyPassword);			//初始化
-			//SSLContext sslContext = SSLContext.getInstance("SSLv3");
-			//sslContext.init(kmf.getKeyManagers(), null, null);
-			//SSLServerSocketFactory factory = sslContext.getServerSocketFactory();	//创建服务器嵌套字工厂
-			//s = (SSLServerSocket)factory.createServerSocket(thePort);				//创建服务器嵌套字
-			//s.setWantClientAuth(false);				//单向验证 取消对客户端的验证
+	
 			s = new ServerSocket(thePort);
 			
 			pool = Executors.newCachedThreadPool();
