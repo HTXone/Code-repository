@@ -150,22 +150,22 @@ public class MainClient {
 			//char[] Data = txt.toCharArray();
 			int size = txt.length();
 			while(size-begin>53) {
-				DOS.writeUTF(RSA.encryptByPrivateKey(txt.substring(begin, begin+53), RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPublicKey(txt.substring(begin, begin+53), RSAKey));
 				
 				begin+=53;
 			}
-			DOS.writeUTF(RSA.encryptByPrivateKey(txt.substring(begin), RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey(txt.substring(begin), RSAKey));
 			
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 		
 	}
 	
 	public String LongStringGet() throws IOException, Exception {
 			String CMD = new String();
-			String txt = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+			String txt = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
 			while(!txt.equals("Over")) {
 				CMD = CMD+txt;
-				txt = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+				txt = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
 			}
 			
 			return CMD;
@@ -175,8 +175,8 @@ public class MainClient {
 		try {
 			if(DOS!=null) {
 				try {
-					DOS.writeUTF(RSA.encryptByPrivateKey("Close:", RSAPrivateKey));
-					DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+					DOS.writeUTF(RSA.encryptByPublicKey("Close:", RSAKey));
+					DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 				}catch(Exception e) {
 					e.printStackTrace();
 				}
@@ -193,10 +193,10 @@ public class MainClient {
 	public String Login(String UserName,String PWD) {			//返回登入信息
 		try {
 			
-			DOS.writeUTF(RSA.encryptByPrivateKey("login:"+UserName+":"+PWD, RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("login:"+UserName+":"+PWD, RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
-			String CMD = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+			String CMD = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
 			
 			String[] CMDS = CMD.split(":");
 			
@@ -206,9 +206,9 @@ public class MainClient {
 					
 					this.IsLogin = true;
 					
-					this.Path = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+					this.Path = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
 					
-					this.DESKey = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+					this.DESKey = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
 					
 					//System.out.println("Path: "+Path+" DES: "+DESKey);
 					
@@ -241,10 +241,10 @@ public class MainClient {
 	public String Logon(String UserName,String PWD) {				//返回一个字符串 格式T/F:Failreason
 		try {
 			
-			DOS.writeUTF(RSA.encryptByPrivateKey("logon:"+UserName+":"+PWD, RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("logon:"+UserName+":"+PWD, RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
-			String CMD = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+			String CMD = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
 			
 			String[] CMDS = CMD.split(":");
 			if(CMDS[0].equals("Logon")) {
@@ -269,8 +269,8 @@ public class MainClient {
 	public String DirIn(long DirNum) {								//返回一个字符串 显示当前进入文件夹信息 格式：DirInfo;FileName-num,FileName-num...;DirName@num
 		
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("DirIn:"+DirNum, RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("DirIn:"+DirNum, RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
 			String CMD = LongStringGet();
 			
@@ -286,8 +286,8 @@ public class MainClient {
 	
 	public String[] getLastUpdate() {							//返回一个字符串数组 为据上次登入退出的总文件夹信息更新
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("LastUpdate:", RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("LastUpdate:", RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
 			String CMD = LongStringGet();
 			
@@ -305,8 +305,8 @@ public class MainClient {
 	
 	public String DirFlush() {										//刷新当前文件夹 返回值与DirIn 相同
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("DirFlush:", RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("DirFlush:", RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
 			String CMD = LongStringGet();
 			
@@ -324,8 +324,8 @@ public class MainClient {
 	
 	public DirInfoObject DirCheck(long DirNum) {							//返回一个文件夹信息类
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("DirCheck:"+DirNum, RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("DirCheck:"+DirNum, RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
 			String CMD = LongStringGet();
 			String[] CMDS = CMD.split(":");
@@ -345,10 +345,10 @@ public class MainClient {
 	
 	public FileInfo FileCheck(long FileNum) {						//返回一个文件信息类
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("FileCheck:"+FileNum, RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("FileCheck:"+FileNum, RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
-			String CMD = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+			String CMD = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
 			String[] CMDS = CMD.split(":");
 			
 			if(CMDS[0].equals("FileCheck")) {
@@ -381,8 +381,8 @@ public class MainClient {
 	
 	public boolean DirMake(String DirName) {						//在当前目录下新建一个文件夹
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("DirMake:"+DirName, RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("DirMake:"+DirName, RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
 			return DIS.readBoolean();
 			
@@ -395,8 +395,8 @@ public class MainClient {
 	
 	public boolean DirDelete(long Dirnum,String DirName) {							//删除指定文件夹(更新)
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("DirDelete:"+Dirnum+":"+DirName, RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("DirDelete:"+Dirnum+":"+DirName, RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
 			return DIS.readBoolean();
 			
@@ -409,8 +409,8 @@ public class MainClient {
 	
 	public boolean FileDelete(String FileName) {    					//删除指定文件 （更改）
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("FileDelete:"+FileName, RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("FileDelete:"+FileName, RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
 			return DIS.readBoolean();
 			
@@ -438,8 +438,8 @@ public class MainClient {
 	
 	public String getPath() {					//获取当前路径
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("GetPath:", RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("GetPath:", RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
 			String CMD = LongStringGet();
 			
@@ -458,8 +458,8 @@ public class MainClient {
 	
 	public String Back() {
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("Back:", RSAPrivateKey));
-			DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Back:", RSAKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			
 			String CMD = LongStringGet();
 			
@@ -510,8 +510,8 @@ public class MainClient {
 			}
 			else if(mode.equals("Read")) {
 				
-				DOS.writeUTF(RSA.encryptByPrivateKey("FileRead:"+FileName, RSAPrivateKey));
-				DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPublicKey("FileRead:"+FileName, RSAKey));
+				DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 				
 				
 				String Path = LongStringGet();

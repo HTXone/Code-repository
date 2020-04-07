@@ -868,7 +868,7 @@ public class DirTree {
 
 	public String DirBack() {					//目录后退 返回父文件夹信息
 		
-		if(History.size() == 0 ) {				//判断 当到达最后文件夹时报错返回null
+		if(History.size() == 1 ) {				//判断 当到达最后文件夹时报错返回null
 			System.out.println("No father Dir Error");
 			return null;								
 		}

@@ -88,13 +88,13 @@ class ChatSocket implements Runnable{
 		try {
 			ResultSet result = SQL.Search(BTableName, "*", "WHERE UserName = "+CMDS[1]);
 			if(result!=null) {
-				DOS.writeUTF(RSA.encryptByPrivateKey("Logon:False:1", RSAPrivateKey));		//用户名已存在
+				DOS.writeUTF(RSA.encryptByPublicKey("Logon:False:1", RSAKey));		//用户名已存在
 				return ;
 			}
 			else {
 				
 				if(CMDS[2].length()>16) {
-					DOS.writeUTF(RSA.encryptByPrivateKey("Logon:False:3", RSAPrivateKey));
+					DOS.writeUTF(RSA.encryptByPublicKey("Logon:False:3", RSAKey));
 					return ;
 				}
 				
@@ -108,7 +108,7 @@ class ChatSocket implements Runnable{
 				
 				SQL.Insert(BTableName, "(UserName,UserPWD,UserPath,UUID) VALUES ('"+CMDS[1]+"','"+HashCipher.Cihper(CMDS[2])+"','"+BasePath+CMDS[1]+"/','"+UUIDMake.getNewUUID()+"')");
 				
-				DOS.writeUTF(RSA.encryptByPrivateKey("Logon:True", RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPublicKey("Logon:True", RSAKey));
 				
 				System.out.println("Over");		//用户记录入库
 				
@@ -120,7 +120,7 @@ class ChatSocket implements Runnable{
 			
 		}catch(Exception e) {
 			try {
-				DOS.writeUTF(RSA.encryptByPrivateKey("Logon:False:404", RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPublicKey("Logon:False:404", RSAKey));
 				e.printStackTrace();
 			}catch(Exception ie) {
 				ie.printStackTrace();
@@ -149,7 +149,7 @@ class ChatSocket implements Runnable{
 					if(ca1[i]!=ca2[i]) {
 						System.out.println(i);
 						
-						DOS.writeUTF(RSA.encryptByPrivateKey("login:Fail:2", RSAPrivateKey));
+						DOS.writeUTF(RSA.encryptByPublicKey("login:Fail:2", RSAKey));
 						
 						return false;
 					}
@@ -160,7 +160,7 @@ class ChatSocket implements Runnable{
 				this.IsLogin = true;
 				this.Path = BasePath+CMDS[1]+"/";				//初始化path
 				
-				DOS.writeUTF(RSA.encryptByPrivateKey("login:Success", RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPublicKey("login:Success", RSAKey));
 				
 				this.FT.InitTree(BasePath+CMDS[1]+"/FileRecord");
 				
@@ -180,20 +180,20 @@ class ChatSocket implements Runnable{
 					DESKey = DESKey+"0";
 				}
 				
-				DOS.writeUTF(RSA.encryptByPrivateKey(Path, RSAPrivateKey));
-				DOS.writeUTF(RSA.encryptByPrivateKey(DESKey, RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPublicKey(Path, RSAKey));
+				DOS.writeUTF(RSA.encryptByPublicKey(DESKey, RSAKey));
 				
 				this.SQL.Close();
 				
 				return true;
 			}
-			else DOS.writeUTF(RSA.encryptByPrivateKey("login:Fail:1", RSAPrivateKey));
+			else DOS.writeUTF(RSA.encryptByPublicKey("login:Fail:1", RSAKey));
 			return false;
 		}catch(Exception e) {
 			e.printStackTrace();
 			
 			try {
-				DOS.writeUTF(RSA.encryptByPrivateKey("404", RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPublicKey("404", RSAKey));
 			}catch(Exception ie) {
 				ie.printStackTrace();
 			}
@@ -256,7 +256,7 @@ class ChatSocket implements Runnable{
 	
 	public void FileCheck(String[] CMDS) {
 		try {
-			DOS.writeUTF(RSA.encryptByPrivateKey("FileCheck:"+FT.FileCheck(Long.valueOf(CMDS[1])), RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey("FileCheck:"+FT.FileCheck(Long.valueOf(CMDS[1])), RSAKey));
 		}catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -520,8 +520,8 @@ public static boolean deleteDirectory(String sPath) {
 			e.printStackTrace();
 		}catch(Exception e) {
 			try {
-				DOS.writeUTF(RSA.encryptByPrivateKey("GetPath:", RSAPrivateKey));
-				DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+				DOS.writeUTF(RSA.encryptByPublicKey("GetPath:", RSAKey));
+				DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 			}catch(Exception ie) {
 				ie.printStackTrace();
 			}
@@ -534,22 +534,22 @@ public static boolean deleteDirectory(String sPath) {
 		//char[] Data = txt.toCharArray();
 		int size = txt.length();
 		while(size-begin>53) {
-			DOS.writeUTF(RSA.encryptByPrivateKey(txt.substring(begin, begin+53), RSAPrivateKey));
+			DOS.writeUTF(RSA.encryptByPublicKey(txt.substring(begin, begin+53), RSAKey));
 			
 			begin+=53;
 		}
-		DOS.writeUTF(RSA.encryptByPrivateKey(txt.substring(begin), RSAPrivateKey));
+		DOS.writeUTF(RSA.encryptByPublicKey(txt.substring(begin), RSAKey));
 		
-		DOS.writeUTF(RSA.encryptByPrivateKey("Over", RSAPrivateKey));
+		DOS.writeUTF(RSA.encryptByPublicKey("Over", RSAKey));
 	
 	}
 
 	public String LongStringGet() throws IOException, Exception {
 		String CMD = new String();
-		String txt = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+		String txt = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
 		while(!txt.equals("Over")) {
 			CMD = CMD+txt;
-			txt = RSA.decryptByPublicKey(DIS.readUTF(), RSAKey);
+			txt = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
 		}
 		
 		return CMD;
