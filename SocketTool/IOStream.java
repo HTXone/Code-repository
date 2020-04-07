@@ -51,7 +51,7 @@ public class IOStream {
 	//DES加密流
 	public static InputStream DESIn(InputStream in,String PassWord) throws Exception{		//DES加密
 		SecretKey Skey = new SecretKeySpec(PassWord.getBytes(),"DES") ;		//密匙建立
-		Cipher cipher = Cipher.getInstance("DES");							//密码建立
+		Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");							//密码建立
 		cipher.init(Cipher.ENCRYPT_MODE, Skey);
 		
 		in = new CipherInputStream(in, cipher);//加密流
@@ -60,7 +60,7 @@ public class IOStream {
 	
 	public static OutputStream DESOut(OutputStream out,String PassWord) throws Exception{		//DES解密
 		SecretKey SKey = new SecretKeySpec(PassWord.getBytes(), "DES");	//密匙建立
-		Cipher cipher = Cipher.getInstance("DES");						//解密密码建立
+		Cipher cipher = Cipher.getInstance("DES/ECB/PKCS5Padding");						//解密密码建立
 		cipher.init(Cipher.DECRYPT_MODE, SKey);							
 		
 		out = new CipherOutputStream(out, cipher);						//解密流
@@ -68,24 +68,32 @@ public class IOStream {
 	}
 	
 	public static void main(String[] args) {
-		File file = new File("outTest2.bin");
-		
+		File file = new File("outTest.bin");
 		File file2 = new File("TTT.bin");
-		
+		File file3 = new File("outTest2.bin");
 		int length = 0;
 		
 		byte[] b = new byte[1024];
 		try {
-			FileOutputStream FOS = new FileOutputStream(file);
-		
-			FileInputStream FIS = new FileInputStream(file2);
-
+			FileOutputStream FOS = new FileOutputStream(file2);
+			FileInputStream FIS = new FileInputStream(file);
 			InputStream IS = IOStream.DESIn(FIS, "12345678");
+			System.out.println(b.length);
 			
 			while((length = IS.read(b, 0, b.length))!= -1) {
 				System.out.println(length);
 				FOS.write(b, 0, length);
 				FOS.flush();
+			}
+			System.out.println("Over");
+			FOS = new FileOutputStream(file3);
+			FIS = new FileInputStream(file2);
+			OutputStream OS = IOStream.DESOut(FOS, "12345678");
+			length = 0;
+			while((length = FIS.read(b, 0, b.length))!= -1) {
+				System.out.println(length);
+				OS.write(b,0,length);
+				OS.flush();
 			}
 			System.out.println("Over");
 		} catch (Exception e) {
