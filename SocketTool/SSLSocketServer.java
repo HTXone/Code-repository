@@ -1,6 +1,7 @@
 
 import java.io.*;
 import java.net.*;
+import java.security.KeyPair;
 import java.security.KeyStore;
 import java.util.*;
 import java.util.concurrent.Executor;
@@ -201,8 +202,22 @@ class CreatThread extends Observable implements Runnable{		//单次接收请求�
 	public void run() {											//文件中转线程启动
 		try{
 			DataInputStream DIS = new DataInputStream(client.getInputStream());
-			String command = DIS.readUTF();
+			DataOutputStream DOS = new DataOutputStream(client.getOutputStream());
 			
+			String command = null;
+			
+			try {
+				KeyPair Key = RSA.getKeyPair();
+				String RSAPrivateKey = RSA.getPrivateKey(Key);
+				String RSAPublicKey = RSA.getPublicKey(Key);
+				DOS.writeUTF(RSAPublicKey);
+				command = RSA.decryptByPrivateKey(DIS.readUTF(), RSAPrivateKey);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				client.close();
+			}
+			if(command == null) client.close();
 			System.out.println(command);
 			
 			SS = command.split("#");

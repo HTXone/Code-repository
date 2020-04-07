@@ -545,13 +545,16 @@ public class SocketClient implements CallBack{		//增加回调接口
 		this.OPS = new OPSW(null, null);
 		this.callBack = callBack;
 		
+		String RSAKey;
 		
 		client = new Socket(hostName,port);			//得到套接字
 		
 		TranslateList = new Vector<ClientFileTranslate>();
 		
 		DataOutputStream DOS = new DataOutputStream(client.getOutputStream());		//向服务器发送传输命令
-		DOS.writeUTF(mood+"#"+FileName+"#"+LSpeed+"#"+SFileName+"#"+DESPassWord);
+		DataInputStream DIS = new DataInputStream(client.getInputStream());
+		RSAKey = DIS.readUTF();
+		DOS.writeUTF(RSA.encryptByPublicKey(mood+"#"+FileName+"#"+LSpeed+"#"+SFileName+"#"+DESPassWord, RSAKey));
 		
 	}
 	
@@ -885,7 +888,7 @@ public class SocketClient implements CallBack{		//增加回调接口
 			
 			CAB c = new CAB();
 			
-			SocketClient Client = new SocketClient("182.92.197.26",4000,args[0],args[1],args[2],args[3],args[4],c);			//命令行格式  Read/Send 本地文件 限速 目的文件
+			SocketClient Client = new SocketClient("localhost",4000,args[0],args[1],args[2],args[3],args[4],c);			//命令行格式  Read/Send 本地文件 限速 目的文件
 			Client.ClientFirstStart(args[0], args[1], args[2],args[3]);
 			//Client.FileTranslate(new FileInputStream("./in.bin"), new BufferedOutputStream(Client.getClientOutputStream())); 
 		}catch(Exception ie) {}
